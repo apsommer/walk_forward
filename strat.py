@@ -5,6 +5,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from datetime import datetime
+import math
 
 TICKER = 'AAPL'
 START_DATE = '2015-01-01'
@@ -135,7 +136,18 @@ for iter in tqdm(iterations):
         'sharpe_ratio': stats_oos['Sharpe Ratio'],
         'return_bh': stats_oos['Buy & Hold Return [%]'],
         'n_high': stats_oos._strategy.n_high,
-        'n_low': stats_oos._strategy.n_low
+        'n_low': stats_oos._strategy.n_low,
+        'exposure': stats_oos['Exposure Time [%]'],
+        'bh_scaled': stats_oos['Buy & Hold Return [%]'] * stats_oos['Exposure Time [%]'] / 100,
+        'is_heatmap': heatmap,
+        'sharpe_is': stats_is['Sharpe Ratio'],
     })
 
-print(pd.DataFrame(report))
+# plot IS heatmaps
+plt.rcParams['figure.figsize'] = [20, 10]
+rows = len(report)
+for idx, res in enumerate(report):
+    plt.subplot(math.floor(rows/2), math.ceil(rows/2), idx+1)
+    plt.title(f"Iter # {idx+1} - Year {res['start_date'].year}")
+    sns.heatmap(res['is_heatmap'].unstack())
+plt.show()
