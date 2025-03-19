@@ -13,7 +13,7 @@ def get_binance_bars(symbol, interval, startTime, endTime):
     req_params = {"symbol" : symbol, 'interval' : interval, 'startTime' : startTime, 'endTime' : endTime, 'limit' : limit}
 
     # make synchronous network GET request to binance.com
-    # todo this just hangs, need api key ...
+    # todo this just hangs, need api key setup ...
     df = pd.DataFrame(
         json.loads(
             requests.get(
