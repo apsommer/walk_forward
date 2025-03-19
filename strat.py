@@ -1,11 +1,10 @@
-import yfinance
-
 import yfinance as yf
 import pandas as pd
 from backtesting import Strategy, Backtest
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from datetime import datetime
 
 TICKER = 'AAPL'
 START_DATE = '2015-01-01'
@@ -68,3 +67,30 @@ stats, heatmap = bt.optimize(
 
 sns.heatmap(heatmap.unstack())
 plt.show()
+
+########## WALK FORWARD TEST ##########
+
+# 3 years IS, 1 year OOS
+# unanchored, sliding four year window
+iterations = [
+    {
+        'in_sample': [datetime(2015,1,1),datetime(2017,12,31)],
+        'out_of_sample': [datetime(2018,1,1),datetime(2018,12,31)]
+    },
+    {
+        'in_sample': [datetime(2016,1,1),datetime(2018,12,31)],
+        'out_of_sample': [datetime(2019,1,1),datetime(2019,12,31)]
+    },
+    {
+        'in_sample': [datetime(2017,1,1),datetime(2019,12,31)],
+        'out_of_sample': [datetime(2020,1,1),datetime(2020,12,31)]
+    },
+    {
+        'in_sample': [datetime(2018,1,1),datetime(2020,12,31)],
+        'out_of_sample': [datetime(2021,1,1),datetime(2021,12,31)]
+    },
+    {
+        'in_sample': [datetime(2019,1,1),datetime(2021,12,31)],
+        'out_of_sample': [datetime(2022,1,1),datetime(2022,12,31)]
+    },
+]
