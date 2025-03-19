@@ -104,14 +104,14 @@ for iter in tqdm(iterations):
     df_is = df_prices[(df_prices.index >= iter['in_sample'][0]) & (df_prices.index <= iter['in_sample'][1])]
     df_oos = df_prices[(df_prices.index >= iter['out_of_sample'][0]) & (df_prices.index <= iter['out_of_sample'][1])]
 
-    # backtest default strat
+    # create default backtest
     bt_is = Backtest(df_is, BuyLowSellHighStrategy, cash=10_000, commission=0, exclusive_orders=True)
 
     # optimize / sweep walk forward params
     stats_is, heatmap = bt_is.optimize(
         n_high=range(20, 60, 5),
         n_low=range(20, 60, 5),
-        maximize='Equity Final [$]',
+        maximize='Sharpe Ratio', # bt.run output column names
         method='grid',
         max_tries=64,
         random_state=0,
@@ -124,6 +124,7 @@ for iter in tqdm(iterations):
     # run optimized params on OS portion
     bt_oos = Backtest(df_oos, BuyLowSellHighStrategy, cash=10_000, commission=0, exclusive_orders=True)
     stats_oos = bt_oos.run()
+    print(stats_oos)
 
     # construct text output summary
     report.append({
