@@ -46,3 +46,9 @@ class BuyLowSellHighStrategy(Strategy):
         # if position is long and this is the high watermark
         elif self.high_watermark[-1] == self.data.Close[-1]:
             self.position.close()
+
+########## TEST ##########
+
+bt = Backtest(df_prices, BuyLowSellHighStrategy, cash=10_000, commission=0, exclusive_orders=True)
+stats = bt.run()
+print(stats)
