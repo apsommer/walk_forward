@@ -35,6 +35,7 @@ class BuyLowSellHighStrategy(Strategy):
 
     def next(self):
 
+        # strat is long only
         # if position is flat
         if not self.position:
 
