@@ -94,3 +94,48 @@ iterations = [
         'out_of_sample': [datetime(2022,1,1),datetime(2022,12,31)]
     },
 ]
+
+report = []
+
+for iter in tqdm(iterations):
+
+    # isolate price data IS and OOS portions
+    df_is = df_prices[(df_prices.index >= iter['in_sample'][0]) & (df_prices.index <= iter['in_sample'][1])]
+    df_oos = df_prices[(df_prices.index >= iter['out_of_sample'][0]) & (df_prices.index <= iter['out_of_sample'][1])]
+
+    # backtest default strat
+    bt_is = Backtest(df_is, BuyLowSellHighStrategy, cash=10_000, commission=0, exclusive_orders=True)
+
+    # optimize / sweep walk forward params
+    stats_is, heatmap = bt_is.optimize(
+        n_high=range(20, 60, 5),
+        n_low=range(20, 60, 5),
+        maximize='Equity Final [$]',
+        method='grid',
+        max_tries=64,
+        random_state=0,
+        return_heatmap=True)
+
+    # extract the optimal params
+    BuyLowSellHighStrategy.n_high = stats_is._strategy.n_high
+    BuyLowSellHighStrategy.n_low = stats_is._strategy.n_low
+
+    # run optimized params on OS portion
+    bt_oos = Backtest(df_oos, BuyLowSellHighStrategy, cash=10_000, commission=0, exclusive_orders=True)
+    stats_oos = bt_oos.run()
+
+    # construct text output summary
+    report.append({
+        'start_date': stats_oos['Start'],
+        'end_date': stats_oos['End'],
+        'return_strat': stats_oos['Return [%]'],
+        'max_drawdown': stats_oos['Max. Drawdown [%]'],
+        'ret_strat_ann': stats_oos['Return (Ann.) [%]'],
+        'volatility_strat_ann': stats_oos['Volatility (Ann.) [%]'],
+        'sharpe_ratio': stats_oos['Sharpe Ratio'],
+        'return_bh': stats_oos['Buy & Hold Return [%]'],
+        'n_high': stats_oos._strategy.n_high,
+        'n_low': stats_oos._strategy.n_low
+    })
+
+print(pd.DataFrame(report))
