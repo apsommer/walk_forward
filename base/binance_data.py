@@ -13,6 +13,7 @@ def get_binance_bars(symbol, interval, startTime, endTime):
     req_params = {"symbol" : symbol, 'interval' : interval, 'startTime' : startTime, 'endTime' : endTime, 'limit' : limit}
 
     # make synchronous network GET request to binance.com
+    # todo this just hangs, need api key ...
     df = pd.DataFrame(
         json.loads(
             requests.get(
@@ -36,3 +37,18 @@ def get_binance_bars(symbol, interval, startTime, endTime):
     df.index = [dt.datetime.fromtimestamp(x / 1000.0) for x in df.datetime]
 
     return df
+
+########## TEST ##########
+
+df_list = []
+last_datetime = dt.datetime(2019, 1, 1)
+
+while True:
+    new_df = get_binance_bars('ETHUSDT', '1m', last_datetime, dt.datetime.now()) # todo what symbols are allowed?
+    if new_df is None:
+        break
+    df_list.append(new_df)
+    last_datetime = max(new_df.index) + dt.timedelta(0, 1)
+
+df = pd.concat(df_list)
+print(df)
