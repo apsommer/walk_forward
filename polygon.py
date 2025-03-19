@@ -32,3 +32,14 @@ def get_histdata_polygon(ticker, start_date, end_date, timespan, multiplier):
         print(f"Error: {response.status_code} - {response.text}")
 
     return pd.DataFrame()
+
+########## TESTS ##########
+
+ticker = 'AAPL'
+start_date = '2024-01-01'
+end_date = '2025-03-01'
+timespan = 'minute'  # minute, hour, day
+multiplier = 1  # multiplier * minute
+
+data = get_histdata_polygon(ticker, start_date, end_date, timespan, multiplier)
+print(data)
