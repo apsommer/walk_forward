@@ -4,11 +4,15 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from datetime import datetime
 import math
-import DataLayer
+from DataLayer import getPrices
 from ExampleStrategy import BuyLowSellHighStrategy
 
-df_prices = DataLayer.getPrices()
-initial_cash = DataLayer.initial_cash
+# constants
+initial_cash = 10_000_000_000_000
+starting_date = "2023-12-15"
+ending_date = "2025-01-01"
+
+df_prices = getPrices(starting_date, ending_date)
 
 iterations = [
     {

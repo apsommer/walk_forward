@@ -1,12 +1,15 @@
 from backtesting import Backtest
 import seaborn as sns
 import matplotlib.pyplot as plt
-import DataLayer
-from ExampleEngine import initial_cash
+from DataLayer import getPrices
 from ExampleStrategy import BuyLowSellHighStrategy
 
-df_prices = DataLayer.getPrices()
-initial_cash = initial_cash
+# constants
+initial_cash = 10_000_000_000_000
+starting_date = "2023-12-15"
+ending_date = "2025-01-01"
+
+df_prices = getPrices(starting_date, ending_date)
 
 # run strategy and output results
 bt = Backtest(df_prices, BuyLowSellHighStrategy, cash=initial_cash, commission=0, exclusive_orders=True)
