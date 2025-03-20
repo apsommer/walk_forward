@@ -1,6 +1,7 @@
 import databento as db
 
 # todo need to constantly create new api key on free tier
+#  https://databento.com/portal/keys
 client = db.Historical("db-hRKYNXiVSbaw9FPMFJwdjyjrG63pi")
 
 # data = client.timeseries.get_range(
@@ -46,7 +47,7 @@ client = db.Historical("db-hRKYNXiVSbaw9FPMFJwdjyjrG63pi")
 def nq():
     data = client.timeseries.get_range(
         dataset="GLBX.MDP3",
-        symbols=["NQ.c.0"],
+        symbols=["NQ.v.0"],
         stype_in="continuous",
         schema="ohlcv-1m",
         start="2023-01-01",
