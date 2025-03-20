@@ -5,87 +5,11 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from datetime import datetime
 import math
-import databento as db
-import local.api_keys as keys
+import DataLayer
+from ExampleStrategy import BuyLowSellHighStrategy
 
-# todo need to constantly create new api key on free tier
-#  https://databento.com/portal/keys
-client = db.Historical(keys.bento_api_key)
-starting_date = "2022-01-03"
-ending_date = "2025-01-01"
-
-df_prices = (client.timeseries.get_range(
-        dataset="GLBX.MDP3",
-        symbols=["NQ.v.0"],
-        stype_in="continuous",
-        schema="ohlcv-1m",
-        start=starting_date,
-        end=ending_date)
-             .to_df())
-
-# normalize timestamps
-df_prices.index = df_prices.index.tz_localize(None)
-
-# format names
-df_prices.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close", "volume": "Volume"}, inplace=True)
-# print(df_prices.to_markdown())
-
-# Strategy ##########
-
-# watermarks of SMA over lookback periods
-def high_watermark(highs, lookback):
-    return pd.Series(highs).rolling(lookback).max()
-def low_watermark(lows, lookback):
-    return pd.Series(lows).rolling(lookback).min()
-
-class BuyLowSellHighStrategy(Strategy):
-    n_high = 30
-    n_low = 30
-
-    def init(self):
-
-        # define indicators
-        self.high_watermark = self.I(high_watermark, self.data.Close, self.n_high)
-        self.low_watermark = self.I(low_watermark, self.data.Close, self.n_low)
-
-    def next(self):
-
-        # strat is long only
-        # if position is flat
-        if not self.position:
-
-            # and this is the low watermark, then buy
-            if self.low_watermark[-1] == self.data.Close[-1]:
-                self.buy()
-
-        # if position is long and this is the high watermark
-        elif self.high_watermark[-1] == self.data.Close[-1]:
-            self.position.close()
-
-########## TEST ##########
-
+df_prices = DataLayer.getPrices()
 initial_cash = 10_000_000_000_000
-
-# run strategy and output results
-bt = Backtest(df_prices, BuyLowSellHighStrategy, cash=initial_cash, commission=0, exclusive_orders=True)
-stats = bt.run()
-print(stats)
-
-# optimize / sweep params for lookback periods
-stats, heatmap = bt.optimize(
-    n_high=range(20, 60, 5), # optimization steps range(low, high, step)
-    n_low=range(20, 60, 5), # optimization steps range(low, high, step)
-    # constraint=lambda p: p.n_high > p.n_low, # optional additional constraints
-    maximize='Equity Final [$]', # fitness function as predefined column name from backtesting.py, consider 'Sharpe Ratio'
-    method = 'grid',
-    # max_tries=56,
-    random_state=0,
-    return_heatmap=True)
-
-sns.heatmap(heatmap.unstack())
-plt.show()
-
-########## WALK FORWARD TEST ##########
 
 iterations = [
     {
