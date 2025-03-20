@@ -1,8 +1,12 @@
 import databento as db
 import local.api_keys as keys
 
+# constants
+initial_cash = 10_000_000_000_000
+
+# request network data synchronous!
 client = db.Historical(keys.bento_api_key)
-starting_date = "2022-01-03"
+starting_date = "2024-06-15" # "2022-01-03"
 ending_date = "2025-01-01"
 
 df_prices = (client.timeseries.get_range(
@@ -14,12 +18,8 @@ df_prices = (client.timeseries.get_range(
         end=ending_date)
              .to_df())
 
-# normalize timestamps
-df_prices.index = df_prices.index.tz_localize(None)
-
 # format names
 df_prices.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close", "volume": "Volume"}, inplace=True)
-# print(df_prices.to_markdown())
 
 def getPrices():
     return df_prices

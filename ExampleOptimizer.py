@@ -1,7 +1,6 @@
 from backtesting import Backtest
 import seaborn as sns
 import matplotlib.pyplot as plt
-
 import DataLayer
 from ExampleEngine import initial_cash
 from ExampleStrategy import BuyLowSellHighStrategy

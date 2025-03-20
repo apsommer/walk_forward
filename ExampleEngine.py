@@ -1,5 +1,4 @@
-import pandas as pd
-from backtesting import Strategy, Backtest
+from backtesting import Backtest
 import seaborn as sns
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -9,7 +8,7 @@ import DataLayer
 from ExampleStrategy import BuyLowSellHighStrategy
 
 df_prices = DataLayer.getPrices()
-initial_cash = 10_000_000_000_000
+initial_cash = DataLayer.initial_cash
 
 iterations = [
     {
