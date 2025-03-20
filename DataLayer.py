@@ -19,10 +19,10 @@ def getPrices(
 
     # format names, normalize timestamps
     df_prices.index = df_prices.index.tz_localize(None)
-    df_prices.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close", "volume": "Volume"},
+    df_prices.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"},
                      inplace=True)
     df_prices.index.rename("timestamp", inplace=True)
 
     # remove unwanted columns
-    clean = df_prices[df_prices.columns.drop(['symbol', 'rtype', 'instrument_id', 'publisher_id'])]
+    clean = df_prices[df_prices.columns.drop(['symbol', 'rtype', 'instrument_id', 'publisher_id', 'volume'])]
     return clean
