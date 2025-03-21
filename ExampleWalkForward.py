@@ -8,7 +8,6 @@ from DataLayer import getPrices
 from ExampleStrategy import BuyLowSellHighStrategy
 
 # constants
-initial_cash = 10_000_000_000_000
 starting_date = "2023-12-15"
 ending_date = "2025-01-01"
 
@@ -50,7 +49,7 @@ for iter in tqdm(iterations):
     df_oos = df_prices[(df_prices.index >= iter['out_of_sample'][0]) & (df_prices.index <= iter['out_of_sample'][1])]
 
     # create default backtest
-    bt_is = Backtest(df_is, BuyLowSellHighStrategy, cash=initial_cash, commission=0, exclusive_orders=True)
+    bt_is = Backtest(df_is, BuyLowSellHighStrategy, cash=10_000_000_000_000, commission=0, exclusive_orders=True)
 
     # optimize / sweep walk forward params
     stats_is, heatmap = bt_is.optimize(
@@ -67,7 +66,7 @@ for iter in tqdm(iterations):
     BuyLowSellHighStrategy.n_low = stats_is._strategy.n_low
 
     # run optimized params on OS portion
-    bt_oos = Backtest(df_oos, BuyLowSellHighStrategy, cash=initial_cash, commission=0, exclusive_orders=True)
+    bt_oos = Backtest(df_oos, BuyLowSellHighStrategy, cash=10_000_000_000_000, commission=0, exclusive_orders=True)
     stats_oos = bt_oos.run()
     print(stats_oos)
 

@@ -1,4 +1,6 @@
 import databento as db
+import pandas as pd
+
 import local.api_keys as keys
 
 # request network data synchronous!
@@ -20,6 +22,7 @@ def getPrices(
 
     # normalize timestamps todo backtesting plotter doesn't like some timestamps
     df_prices.index = df_prices.index.tz_localize(None)
+    pd.to_datetime(df_prices.index)
 
     # scrub dataframe
     df_prices.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"}, inplace=True)

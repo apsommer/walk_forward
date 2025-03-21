@@ -5,14 +5,13 @@ from DataLayer import getPrices
 from ExampleStrategy import BuyLowSellHighStrategy
 
 # constants
-initial_cash = 10_000_000_000_000
 starting_date = "2023-12-15"
 ending_date = "2025-01-01"
 
 df_prices = getPrices(starting_date, ending_date)
 
 # run strategy and output results
-bt = Backtest(df_prices, BuyLowSellHighStrategy, cash=initial_cash, commission=0, exclusive_orders=True)
+bt = Backtest(df_prices, BuyLowSellHighStrategy, cash=10_000_000_000_000, commission=0, exclusive_orders=True)
 stats = bt.run()
 print(stats)
 
