@@ -73,11 +73,11 @@ entryRestrictionPercent =
 coolOffMinutes = 5
 positionEntryMinutes = 1
 
-// monte carlo, 10k runs, 95% confidence, qty=1, chart ticker contract size (mini)
-analysisDrawdown = 71000
+    // monte carlo, 10k runs, 95% confidence, qty=1, chart ticker contract size (mini)
+    analysisDrawdown = 71000
 
-// special consideration from wfa analysis distribution
-isEntryBlocked = not na(time(timeframe.period, "0000-0000:2", syminfo.timezone)) // block shorts on monday (sunday: 1, saturday: 7)
+    // special consideration from wfa analysis distribution
+    isEntryBlocked = not na(time(timeframe.period, "0000-0000:2", syminfo.timezone)) // block shorts on monday (sunday: 1, saturday: 7)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -140,34 +140,34 @@ fastCrossover = takeProfit == 0 ?
      fastCrossoverPercent / 100.0 : // percent of slow price
      (fastCrossoverPercent / 100.0) * takeProfit // percent of takeProfit
 
-// format strategy times
-strategyStartTime = timestamp(syminfo.timezone,
-     2000 + int(str.tonumber(array.get(str.split(startDate, ','), 2))), // year
-     int(str.tonumber(array.get(str.split(startDate, ','), 1))), // month
-     int(str.tonumber(array.get(str.split(startDate, ','), 0))), // day
-     00, 00, 00) // 12am
+    // format strategy times
+    strategyStartTime = timestamp(syminfo.timezone,
+         2000 + int(str.tonumber(array.get(str.split(startDate, ','), 2))), // year
+         int(str.tonumber(array.get(str.split(startDate, ','), 1))), // month
+         int(str.tonumber(array.get(str.split(startDate, ','), 0))), // day
+         00, 00, 00) // 12am
 
-strategyEndTime = timestamp(syminfo.timezone,
-     2000 + int(str.tonumber(array.get(str.split(endDate, ','), 2))),
-     int(str.tonumber(array.get(str.split(endDate, ','), 1))),
-     int(str.tonumber(array.get(str.split(endDate, ','), 0))),
-     17, 00, 00) // 5pm
+    strategyEndTime = timestamp(syminfo.timezone,
+         2000 + int(str.tonumber(array.get(str.split(endDate, ','), 2))),
+         int(str.tonumber(array.get(str.split(endDate, ','), 1))),
+         int(str.tonumber(array.get(str.split(endDate, ','), 0))),
+         17, 00, 00) // 5pm
 
-// monte carlo, 10k points, 95% confidence; mini, not micro
-maxDrawdown = maxQuantity * analysisDrawdown
+    // monte carlo, 10k points, 95% confidence; mini, not micro
+    maxDrawdown = maxQuantity * analysisDrawdown
 
-// toggle strategy
-isStrategyEnabled :=
-     time > strategyStartTime
-     and strategyEndTime > time
-     and not na(time(timeframe.period, entryAllowedTimes + entryAllowedDays, syminfo.timezone))
-     and maxDrawdown > strategy.max_drawdown
-strategyStartIndex := isStrategyEnabled and not isStrategyEnabled[1] ?
-     bar_index : strategyStartIndex[1]
+    // toggle strategy
+    isStrategyEnabled :=
+         time > strategyStartTime
+         and strategyEndTime > time
+         and not na(time(timeframe.period, entryAllowedTimes + entryAllowedDays, syminfo.timezone))
+         and maxDrawdown > strategy.max_drawdown
+    strategyStartIndex := isStrategyEnabled and not isStrategyEnabled[1] ?
+         bar_index : strategyStartIndex[1]
 
-// define high volume intraday hours
-isHighVolumeTime =
-     not na(time(timeframe.period, highVolumeTimes + entryAllowedDays, syminfo.timezone))
+    // define high volume intraday hours
+    isHighVolumeTime =
+         not na(time(timeframe.period, highVolumeTimes + entryAllowedDays, syminfo.timezone))
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

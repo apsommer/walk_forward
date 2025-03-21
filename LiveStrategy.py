@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from backtesting import Strategy
 
@@ -74,3 +75,4 @@ class LiveStrategy(Strategy):
 
     def next(self):
 
+        # todo rawFast = ...
