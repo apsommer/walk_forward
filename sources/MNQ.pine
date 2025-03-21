@@ -1,0 +1,763 @@
+// @version=5
+strategy(
+     title = "MNQM25 0604",
+     overlay = true,
+     max_bars_back = 5000,
+     max_lines_count = 500,
+     max_labels_count = 500,
+     max_boxes_count = 500,
+     initial_capital = 0,
+     calc_on_every_tick = true, // realtime (true), on bar close (false)
+     process_orders_on_close = true, // on bar close (true), next bar open (false)
+     pyramiding = 2)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// live trading
+ticker = 'MNQM25'
+maxQuantity = 2
+pyramidQuantity = 0
+
+// limit buffers, - out + in
+limitBuffer = -1
+highVolumeLimitBuffer = 0
+
+// market buffers, todo align conventions with limit
+marketBuffer = 3 // - in + out
+highVolumeMarketBuffer = 2 // - in + out
+int takeProfitBuffer = 5 // - out + in (na)
+
+// days and times
+startDate = '04,03,25'
+endDate = '06,04,25'
+entryAllowedDays = ":1234567"
+entryAllowedTimes = "0000-0000"
+highVolumeTimes = "0730-1500"
+
+// plot decorations
+tickerColor = color.white
+highVolumeColor = color.teal
+transparencyDay = array.from(10,70,70,80) // trades, fastEnabled/fastMomentum, fastDisabled, background
+transparencyNight = array.from(30,80,80,90)
+plotProfitProximityTicks = 210
+strategyEquityRatio = 0.1
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+fastMinutes =
+     25
+disableEntryMinutes =
+     0
+fastMomentumMinutes =
+     110
+fastCrossoverPercent =
+     0.40
+takeProfitPercent =
+     0
+fastAngleFactor =
+     20
+slowMinutes =
+     1555
+slowAngleFactor =
+     20
+entryRestrictionMinutes =
+     15
+entryRestrictionPercent =
+     0
+
+// constants
+coolOffMinutes = 5
+positionEntryMinutes = 1
+
+// monte carlo, 10k runs, 95% confidence, qty=1, chart ticker contract size (mini)
+analysisDrawdown = 71000
+
+// special consideration from wfa analysis distribution
+isEntryBlocked = not na(time(timeframe.period, "0000-0000:2", syminfo.timezone)) // block shorts on monday (sunday: 1, saturday: 7)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+var isStrategyEnabled = false
+var strategyStartIndex = 0
+var rawFast = open
+var rawSlow = open
+var fast = open
+var slow = open
+var fastSlope = 0.0
+var slowSlope = 0.0
+var slowPositiveBarIndex = 0
+var slowNegativeBarIndex = 0
+var isFastCrossoverLong = false
+var isFastCrossoverShort = false
+var isEntryDisabled = false
+var isEntryLongDisabled = false
+var isEntryShortDisabled = false
+var hasLongEntryDelayElapsed = false
+var hasShortEntryDelayElapsed = false
+var isEntryLongEnabled = false
+var isEntryShortEnabled = false
+var isEntryLong = false
+var isEntryShort = false
+var entryPrice = open
+var isEntryLongPyramid = false
+var isEntryShortPyramid = false
+var longFastCrossoverExit = open
+var shortFastCrossoverExit = open
+var isExitLongFastCrossoverEnabled = false
+var isExitShortFastCrossoverEnabled = false
+var isExitLongFastCrossover = false
+var isExitShortFastCrossover = false
+var isExitLongFastMomentum = false
+var isExitShortFastMomentum = false
+var longTakeProfit = open
+var shortTakeProfit = open
+var isExitLongTakeProfit = false
+var isExitShortTakeProfit = false
+var isExitLong = false
+var isExitShort = false
+var longExitBarIndex = 0
+var shortExitBarIndex = 0
+var position = 0
+var quantity = 0
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// convert units, decimal converts int to float
+fastAngle = fastAngleFactor / 1000.0
+slowAngle = slowAngleFactor / 1000.0
+takeProfit = takeProfitPercent / 100.0
+
+// calculate fast crossover
+fastCrossover = takeProfit == 0 ?
+     fastCrossoverPercent / 100.0 : // percent of slow price
+     (fastCrossoverPercent / 100.0) * takeProfit // percent of takeProfit
+
+// format strategy times
+strategyStartTime = timestamp(syminfo.timezone,
+     2000 + int(str.tonumber(array.get(str.split(startDate, ','), 2))), // year
+     int(str.tonumber(array.get(str.split(startDate, ','), 1))), // month
+     int(str.tonumber(array.get(str.split(startDate, ','), 0))), // day
+     00, 00, 00) // 12am
+
+strategyEndTime = timestamp(syminfo.timezone,
+     2000 + int(str.tonumber(array.get(str.split(endDate, ','), 2))),
+     int(str.tonumber(array.get(str.split(endDate, ','), 1))),
+     int(str.tonumber(array.get(str.split(endDate, ','), 0))),
+     17, 00, 00) // 5pm
+
+// monte carlo, 10k points, 95% confidence; mini, not micro
+maxDrawdown = maxQuantity * analysisDrawdown
+
+// toggle strategy
+isStrategyEnabled :=
+     time > strategyStartTime
+     and strategyEndTime > time
+     and not na(time(timeframe.period, entryAllowedTimes + entryAllowedDays, syminfo.timezone))
+     and maxDrawdown > strategy.max_drawdown
+strategyStartIndex := isStrategyEnabled and not isStrategyEnabled[1] ?
+     bar_index : strategyStartIndex[1]
+
+// define high volume intraday hours
+isHighVolumeTime =
+     not na(time(timeframe.period, highVolumeTimes + entryAllowedDays, syminfo.timezone))
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// calculate raw averages
+rawFast := ta.ema(open, fastMinutes)
+rawSlow := ta.ema(open, slowMinutes)
+
+// smooth and normalize
+fast := ta.ema(rawFast, 5)
+slow := ta.ema(rawSlow, 200)
+normalizedFastPrice = ((fast - fast[1]) / fast) * 100
+normalizedSlowPrice = ((slow - slow[1]) / slow) * 100
+fastSlope := math.todegrees(math.atan(normalizedFastPrice))
+slowSlope := math.todegrees(math.atan(normalizedSlowPrice))
+
+// fast crossover
+isFastCrossoverLong :=
+     fastSlope > fastAngle
+     and (fast > open or fast > close[1])
+     and high > fast
+isFastCrossoverShort :=
+     -fastAngle > fastSlope
+     and (open > fast or close[1] > fast)
+     and fast > low
+
+// enable/disable entry
+isEntryDisabled :=
+     not isStrategyEnabled
+isEntryLongDisabled :=
+     disableEntryMinutes == 0 ? false :
+          bar_index - strategyStartIndex > disableEntryMinutes
+          and ta.lowest(fastSlope, disableEntryMinutes) > 0
+isEntryShortDisabled :=
+     disableEntryMinutes == 0 ? false :
+          bar_index - strategyStartIndex > disableEntryMinutes
+          and 0 > ta.highest(fastSlope, disableEntryMinutes)
+isEntryLongEnabled :=
+     positionEntryMinutes == 0 ? true :
+     fast > ta.highest(open, positionEntryMinutes)
+isEntryShortEnabled :=
+     positionEntryMinutes == 0 ? true :
+     ta.lowest(open, positionEntryMinutes) > fast
+
+// delay after exit before next entry
+hasLongEntryDelayElapsed := bar_index - nz(longExitBarIndex) > coolOffMinutes
+hasShortEntryDelayElapsed := bar_index - nz(shortExitBarIndex) > coolOffMinutes
+
+// restrict entry price relative to previous exit for short time
+isLongEntryPriceValid =
+     bar_index - nz(longExitBarIndex) > entryRestrictionMinutes ? true :
+     (1 + (1 - entryRestrictionPercent / 100.0) * math.max(takeProfit, fastCrossover)) * entryPrice[1] > fast
+isShortEntryPriceValid =
+     bar_index - nz(shortExitBarIndex) > entryRestrictionMinutes ? true :
+     fast > (1 - (1 - entryRestrictionPercent / 100.0) * math.max(takeProfit, fastCrossover)) * entryPrice[1]
+
+// entries
+isEntryLong :=
+     position == 0
+     and isFastCrossoverLong
+     and not isEntryDisabled
+     and not isEntryLongDisabled
+     and isEntryLongEnabled
+     and slowSlope > slowAngle
+     and hasLongEntryDelayElapsed
+     and isLongEntryPriceValid
+isEntryShort :=
+     position == 0
+     and isFastCrossoverShort
+     and not isEntryDisabled
+     and not isEntryShortDisabled
+     and isEntryShortEnabled
+     and -slowAngle > slowSlope
+     and hasShortEntryDelayElapsed
+     and isShortEntryPriceValid
+     and not isEntryBlocked // special consideration from wfa analysis distribution
+
+// capture entry bar
+entryPrice := isEntryLong or isEntryShort ? fast : entryPrice[1]
+
+// pyramid entries
+pyramidPrice =
+     position > 0 ? (1 - math.max(takeProfit, fastCrossover)) * entryPrice :
+     position < 0 ? (1 + math.max(takeProfit, fastCrossover)) * entryPrice : na
+isEntryLongPyramid :=
+     position > 0
+     and pyramidPrice > low
+     and maxQuantity > position
+isEntryShortPyramid :=
+     position < 0
+     and high > pyramidPrice
+     and maxQuantity > -position
+
+// fast crossover
+longFastCrossoverExit :=
+     fastCrossover == 0 ? na :
+     isEntryLong ? (1 + fastCrossover) * fast :
+     position >= 1 ? longFastCrossoverExit[1] : na
+shortFastCrossoverExit :=
+     fastCrossover == 0 ? na :
+     isEntryShort ? (1 - fastCrossover) * fast :
+     position <= -1 ? shortFastCrossoverExit[1] : na
+isExitLongFastCrossoverEnabled :=
+     isExitLong[1] ? false :
+     isExitLongFastCrossoverEnabled[1] ? true :
+     position >= 1 and high > longFastCrossoverExit ? true : false
+isExitShortFastCrossoverEnabled :=
+     isExitShort[1] ? false :
+     isExitShortFastCrossoverEnabled[1] ? true :
+     position <= -1 and shortFastCrossoverExit > low ? true : false
+isExitLongFastCrossover :=
+     isExitLongFastCrossoverEnabled
+     and position >= 1
+     and fast > low
+isExitShortFastCrossover :=
+     isExitShortFastCrossoverEnabled
+     and position <= -1
+     and high > fast
+
+// fast momentum
+isExitLongFastMomentum :=
+     fastMomentumMinutes == 0 ? false :
+          position >= 1
+          and -fastAngle > ta.highest(fastSlope, fastMomentumMinutes)
+isExitShortFastMomentum :=
+     fastMomentumMinutes == 0 ? false :
+          position <= -1
+          and ta.lowest(fastSlope, fastMomentumMinutes) > fastAngle
+
+// take profit
+longTakeProfit :=
+     position >= 1 ? longTakeProfit[1] :
+     isEntryLong and takeProfit != 0 ? (1 + takeProfit) * fast : na
+shortTakeProfit :=
+     position <= -1 ? shortTakeProfit[1] :
+     isEntryShort and takeProfit != 0 ? (1 - takeProfit) * fast : na
+isExitLongTakeProfit :=
+     position >= 1
+     and high > longTakeProfit
+isExitShortTakeProfit :=
+     position <= -1
+     and shortTakeProfit > low
+
+// max drawdown
+isExitLongMaxDrawdown =
+     position >= 1
+     and strategy.max_drawdown > maxDrawdown
+isExitShortMaxDrawdown =
+     position <= -1
+     and strategy.max_drawdown > maxDrawdown
+
+// exit combined
+isExitLong :=
+     isExitLongFastCrossover
+     or isExitLongFastMomentum
+     or isExitLongTakeProfit
+     or isExitLongMaxDrawdown
+isExitShort :=
+     isExitShortFastCrossover
+     or isExitShortFastMomentum
+     or isExitShortTakeProfit
+     or isExitShortMaxDrawdown
+
+// capture exit bar
+longExitBarIndex := isExitLong ? bar_index : longExitBarIndex[1]
+shortExitBarIndex := isExitShort ? bar_index : shortExitBarIndex[1]
+
+// update quantity
+quantity :=
+     isEntryLong or isEntryShort ? maxQuantity - pyramidQuantity :
+     isEntryLongPyramid or isEntryShortPyramid ? pyramidQuantity : 0
+
+// update position
+position :=
+     isEntryLong ? quantity :
+     isEntryLongPyramid ? position + quantity :
+     isEntryShort ? - quantity :
+     isEntryShortPyramid ? position - quantity :
+     isExitLong or isExitShort ? 0 :
+     nz(position[1])
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// define constants
+buy = "buy"
+sell = "sell"
+long = "long"
+short = "short"
+flat = "flat"
+stop = "stop"
+
+// event price
+var eventPrice = open
+eventPrice :=
+     isEntryLong ? fast :
+     isEntryShort ? fast :
+     isEntryLongPyramid ? pyramidPrice :
+     isEntryShortPyramid ? pyramidPrice :
+     isExitLongFastCrossover ? fast :
+     isExitShortFastCrossover ? fast :
+     isExitLongFastMomentum ? open :
+     isExitShortFastMomentum ? open :
+     isExitLongTakeProfit ? longTakeProfit :
+     isExitShortTakeProfit ? shortTakeProfit :
+     isExitLongMaxDrawdown ? open :
+     isExitShortMaxDrawdown ? open :
+     eventPrice[1]
+
+// relax order buffer ticks during high volume hours
+limitBufferTicks = isHighVolumeTime ? highVolumeLimitBuffer : limitBuffer
+marketBufferTicks = isHighVolumeTime ? highVolumeMarketBuffer : marketBuffer
+varip int frames = 0 // count chart update frames ~seconds
+delayFrames = 3 // delay market order following limit order by few seconds, for stop loss and stop spike
+
+// adjust price with buffer ticks
+longEntryLimitPrice = str.tostring(math.round_to_mintick(eventPrice - limitBufferTicks * syminfo.mintick))
+shortEntryLimitPrice = str.tostring(math.round_to_mintick(eventPrice + limitBufferTicks * syminfo.mintick))
+longExitLimitPrice = str.tostring(math.round_to_mintick(eventPrice + limitBufferTicks * syminfo.mintick))
+shortExitLimitPrice = str.tostring(math.round_to_mintick(eventPrice - limitBufferTicks * syminfo.mintick))
+longEntryMarketPrice = str.tostring(math.round_to_mintick(close + marketBufferTicks * syminfo.mintick))
+shortEntryMarketPrice = str.tostring(math.round_to_mintick(close - marketBufferTicks * syminfo.mintick))
+longExitMarketPrice = str.tostring(math.round_to_mintick(close - marketBufferTicks * syminfo.mintick))
+shortExitMarketPrice = str.tostring(math.round_to_mintick(close + marketBufferTicks * syminfo.mintick))
+
+// build json alert message https://docs.traderspost.io/docs/tradingview
+commonEntryAttributes = '{ ' + '"ticker": "' + ticker + '", "quantity": ' + str.tostring(quantity) + ', '
+commonExitAttributes = '{ ' + '"ticker": "' + ticker + '", '
+longEntryLimitAttributes = '"action": "' + buy + '", "sentiment": "' + long + '", "price": ' + longEntryLimitPrice + ' }'
+shortEntryLimitAttributes = '"action": "' + sell + '", "sentiment": "' + short + '", "price": ' + shortEntryLimitPrice + ' }'
+longExitLimitAttributes = '"action": "' + sell + '", "sentiment": "' + flat + '", "price": ' + longExitLimitPrice + ' }'
+shortExitLimitAttributes = '"action": "' + buy + '", "sentiment": "' + flat + '", "price": ' + shortExitLimitPrice + ' }'
+longEntryMarketAttributes = '"action": "' + buy + '", "sentiment": "' + long + '", "price": ' + longEntryMarketPrice + ' }'
+shortEntryMarketAttributes = '"action": "' + sell + '", "sentiment": "' + short + '", "price": ' + shortEntryMarketPrice + ' }'
+longExitMarketAttributes = '"action": "' + sell + '", "sentiment": "' + flat + '", "price": ' + longExitMarketPrice + ' }'
+shortExitMarketAttributes = '"action": "' + buy + '", "sentiment": "' + flat + '", "price": ' + shortExitMarketPrice + ' }'
+
+// take profit order as entry leg on broker-side, tv > tp > ts takes ~3 seconds, but advantagous whipsaw < 1 second!
+takeProfitPrice =
+     position >= 1 ? longTakeProfit + takeProfitBuffer * syminfo.mintick :
+     position <= -1 ? shortTakeProfit - takeProfitBuffer * syminfo.mintick : na
+takeProfitRoundedPrice = str.tostring(math.round_to_mintick(takeProfitPrice))
+takeProfitAttributes = takeProfit == 0 or na(takeProfitBuffer) ? '' : '"takeProfit": { "limitPrice": ' + takeProfitRoundedPrice + ' }, '
+
+// entries, realtime limit, close market
+if isEntryLong
+    strategy.entry(long, strategy.long, quantity)
+    alert(commonEntryAttributes + takeProfitAttributes + longEntryLimitAttributes, alert.freq_once_per_bar)
+    if barstate.isconfirmed and pyramidQuantity == 0
+        alert(commonEntryAttributes + takeProfitAttributes + longEntryMarketAttributes, alert.freq_once_per_bar)
+else if isEntryShort
+    strategy.entry(short, strategy.short, quantity)
+    alert(commonEntryAttributes + takeProfitAttributes + shortEntryLimitAttributes, alert.freq_once_per_bar)
+    if barstate.isconfirmed and pyramidQuantity == 0
+        alert(commonEntryAttributes + takeProfitAttributes + shortEntryMarketAttributes, alert.freq_once_per_bar)
+
+// pyramid entries, realtime limit, close market
+if isEntryLongPyramid
+    strategy.entry("longPyramid", strategy.long, quantity)
+    alert(commonEntryAttributes + takeProfitAttributes + longEntryLimitAttributes, alert.freq_once_per_bar)
+else if isEntryShortPyramid
+    strategy.entry("shortPyramid", strategy.short, quantity)
+    alert(commonEntryAttributes + takeProfitAttributes + shortEntryLimitAttributes, alert.freq_once_per_bar)
+
+// fast crossover, realtime limit, close market
+else if isExitLongFastCrossover
+    strategy.close_all("closeAll")
+    alert(commonExitAttributes + longExitLimitAttributes, alert.freq_once_per_bar)
+    if barstate.isconfirmed
+        alert(commonExitAttributes + longExitMarketAttributes, alert.freq_once_per_bar)
+else if isExitShortFastCrossover
+    strategy.close_all("closeAll")
+    alert(commonExitAttributes + shortExitLimitAttributes, alert.freq_once_per_bar)
+    if barstate.isconfirmed
+        alert(commonExitAttributes + shortExitMarketAttributes, alert.freq_once_per_bar)
+
+// fast momentum, realtime limit, close market
+else if isExitLongFastMomentum
+    strategy.close_all("closeAll")
+    alert(commonExitAttributes + longExitLimitAttributes, alert.freq_once_per_bar)
+    if barstate.isconfirmed
+        alert(commonExitAttributes + longExitMarketAttributes, alert.freq_once_per_bar)
+else if isExitShortFastMomentum
+    strategy.close_all("closeAll")
+    alert(commonExitAttributes + shortExitLimitAttributes, alert.freq_once_per_bar)
+    if barstate.isconfirmed
+        alert(commonExitAttributes + shortExitMarketAttributes, alert.freq_once_per_bar)
+
+// take profit, realtime limit, close market
+else if isExitLongTakeProfit
+    strategy.close_all("closeAll")
+    alert(commonExitAttributes + longExitLimitAttributes, alert.freq_once_per_bar)
+    if barstate.isconfirmed
+        alert(commonExitAttributes + longExitMarketAttributes, alert.freq_once_per_bar)
+else if isExitShortTakeProfit
+    strategy.close_all("closeAll")
+    alert(commonExitAttributes + shortExitLimitAttributes, alert.freq_once_per_bar)
+    if barstate.isconfirmed
+        alert(commonExitAttributes + shortExitMarketAttributes, alert.freq_once_per_bar)
+
+// max drawdown, realtime limit, close market
+else if isExitLongMaxDrawdown
+    strategy.close_all("closeAll")
+    alert(commonExitAttributes + longExitLimitAttributes, alert.freq_once_per_bar)
+    if barstate.isconfirmed
+        alert(commonExitAttributes + longExitMarketAttributes, alert.freq_once_per_bar)
+else if isExitShortMaxDrawdown
+    strategy.close_all("closeAll")
+    alert(commonExitAttributes + shortExitLimitAttributes, alert.freq_once_per_bar)
+    if barstate.isconfirmed
+        alert(commonExitAttributes + shortExitMarketAttributes, alert.freq_once_per_bar)
+
+// count refresh frames
+else if barstate.isconfirmed
+    frames := 0
+else
+    frames := frames + 1
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// define colors
+flatColor = color.white
+longColor = color.blue
+shortColor = color.aqua
+lossColor = color.red
+profitColor = color.green
+transparentColor = color.new(color.black, 100)
+
+// toggle transparency relative to daylight hours
+location = "Europe/Athens"
+timenow24 = 100 * hour(timenow, location) + minute(timenow, location)
+isDay = timenow24 > 730 and 2000 > timenow24 // sunset and sunrise
+transparencyOne = isDay ? transparencyDay.get(0) : transparencyNight.get(0)
+transparencyTwo = isDay ? transparencyDay.get(1) : transparencyNight.get(1)
+transparencyThree = isDay ? transparencyDay.get(2) : transparencyNight.get(2)
+transparencyFour = isDay ? transparencyDay.get(3) : transparencyNight.get(3)
+
+// background
+backgroundColor =
+     not isStrategyEnabled ? color.new(color.white, transparencyFour) :
+     time_tradingday != time_tradingday[1] ? color.new(highVolumeColor, transparencyFour) :
+     isHighVolumeTime ? color.new(highVolumeColor, transparencyFour) :
+     transparentColor
+bgcolor(backgroundColor, title = "background", editable = false)
+
+// slow
+slowColor =
+     slowSlope > slowAngle ? color.new(longColor, transparencyTwo) :
+     -slowAngle > slowSlope ? color.new(shortColor, transparencyTwo) : na
+slowDisabledColor =
+     na(slowColor) ? color.new(tickerColor, transparencyThree) : na
+plot(slow, "slowEntryEnabled", slowColor, 2, plot.style_linebr, display = display.none)
+plot(slow, "slowEntryDisabled", slowDisabledColor, 2, plot.style_linebr, display = display.none)
+
+// trades
+var entryTime = time
+entryTime := isEntryLong or isEntryShort ? time : entryTime[1]
+isFirstBarTrade =
+     time == chart.left_visible_bar_time
+     and position != 0
+     and chart.left_visible_bar_time > entryTime
+isLastBarMarketOpen = not barstate.isconfirmed
+isLastBarMarketClosed = barstate.islast and timenow - time > 90 * 1000
+isLastBar = isLastBarMarketOpen or isLastBarMarketClosed
+tradeColor =
+     isFirstBarTrade ? transparentColor :
+     isEntryLong or isEntryShort ? transparentColor :
+     isExitLong ? color.new(longColor, transparencyTwo) :
+     isExitShort ? color.new(shortColor, transparencyTwo) :
+     position >= 1 ? color.new(longColor, 0) :
+     position <= -1 ? color.new(shortColor, 0) : na
+tradePrice =
+     isFirstBarTrade ? entryPrice :
+     isLastBar ? close :
+     eventPrice == pyramidPrice ? na :
+     eventPrice != nz(eventPrice[1]) ? eventPrice : na
+plot(tradePrice, "trades", tradeColor, 2, plot.style_line, editable = false)
+
+// last bar
+livePrice = barstate.isconfirmed ? na : close
+marketClosedPrice = isLastBarMarketClosed ? close : na
+lastPriceColor =
+     position == 0 ? color.new(flatColor, transparencyOne) :
+     strategy.opentrades.profit(0) > 0 ? color.new(profitColor, transparencyOne) :
+     strategy.opentrades.profit(0) <= 0 ? color.new(lossColor, transparencyOne) : na
+plotshape(livePrice, "livePrice", shape.circle, location.absolute,
+     lastPriceColor, size = size.small, editable = false)
+plotshape(marketClosedPrice, "marketClosedPrice", shape.xcross, location.absolute,
+     lastPriceColor, size = size.small, editable = false)
+
+// active trade (now)
+isActiveTrade =
+     isEntryLong or isEntryShort or isFirstBarTrade or isLastBar
+activeTradeColor =
+     isFirstBarTrade ? transparentColor :
+     isEntryLong or isEntryShort ? transparentColor :
+     // position >= 1 and strategy.opentrades.profit(0) > 0 ? color.new(profitColor, transparencyOne) :
+     position >= 1 and 0 > strategy.opentrades.profit(0) ? color.new(lossColor, transparencyOne) :
+     // position <= -1 and strategy.opentrades.profit(0) > 0 ? color.new(profitColor, transparencyOne) :
+     position <= -1 and 0 > strategy.opentrades.profit(0) ? color.new(lossColor, transparencyOne) : na
+plot(isActiveTrade ? tradePrice : na, "activeTrade", tradeColor, 10, plot.style_line, editable = false)
+plot(isActiveTrade ? tradePrice : na, "activeProfitableTrade", activeTradeColor, 4, plot.style_line, editable = false)
+
+// entries
+entryLongPlot = isEntryLong ? fast : na
+entryShortPlot = isEntryShort ? fast : na
+plotshape(entryLongPlot, 'entryLongPlot', shape.triangleup, location.absolute,
+     color.new(longColor, transparencyTwo), size = size.tiny, editable = false)
+plotshape(entryShortPlot, 'entryShortPlot', shape.triangledown, location.absolute,
+     color.new(shortColor, transparencyTwo), size = size.tiny, editable = false)
+
+// pyramid entries
+entryLongPyramidPlot = isEntryLongPyramid ? pyramidPrice : na
+entryShortPyramidPlot = isEntryShortPyramid ? pyramidPrice : na
+plotshape(entryLongPyramidPlot, 'entryLongPyramidPlot', shape.triangleup, location.absolute,
+     color.new(longColor, transparencyTwo), size = size.tiny, editable = false)
+plotshape(entryShortPyramidPlot, 'entryShortPyramidPlot', shape.triangledown, location.absolute,
+     color.new(shortColor, transparencyTwo), size = size.tiny, editable = false)
+
+// fast momentum
+longFastMomentum =
+     (position >= 1 or isExitLong)
+     and -fastAngle > ta.highest(fastSlope, math.round(0.5 * fastMomentumMinutes)) ?
+          fast : na
+shortFastMomentum =
+     (position <= -1 or isExitShort)
+     and ta.lowest(fastSlope, math.round(0.5 * fastMomentumMinutes)) > fastAngle ?
+          fast : na
+fastMomentumExitPrice =
+     isExitLongFastMomentum or isExitShortFastMomentum ? open : na
+plot(longFastMomentum, "longFastMomentum", color.new(lossColor, transparencyTwo), 7, plot.style_linebr)
+plot(shortFastMomentum, "shortFastMomentum", color.new(lossColor, transparencyTwo), 7, plot.style_linebr)
+plotshape(fastMomentumExitPrice, "fastMomentumPrice", shape.circle, location.absolute,
+     color.new(lossColor, transparencyTwo), size = size.tiny, editable = false)
+
+// fast
+fastEnabledColor =
+     fastSlope > fastAngle and slowSlope > slowAngle ? color.new(longColor, transparencyTwo) :
+     -fastAngle > fastSlope and -slowAngle > slowSlope ? color.new(shortColor, transparencyTwo) : na
+fastDisabledColor =
+     na(longFastMomentum[1]) and not na(longFastMomentum) ? color.new(tickerColor, transparencyThree) :
+     na(shortFastMomentum[1]) and not na(shortFastMomentum) ? color.new(tickerColor, transparencyThree) :
+     not na(longFastMomentum) or not na(shortFastMomentum) ? na :
+     na(fastEnabledColor) ? color.new(tickerColor, transparencyThree) :
+     color.new(tickerColor, transparencyFour)
+plot(fast, "fastEntryEnabled", fastEnabledColor, 4, plot.style_linebr)
+plot(fast, "fastEntryDisabled", fastDisabledColor, 2, plot.style_linebr)
+
+// fast crossover
+fastCrossoverPrice =
+     isExitLongFastCrossover or isExitShortFastCrossover ? fast : na
+fastCrossoverThresholdPrice =
+     isExitLongFastCrossoverEnabled and not isExitLongFastCrossoverEnabled[1] ? longFastCrossoverExit :
+     isExitShortFastCrossoverEnabled and not isExitShortFastCrossoverEnabled[1] ? shortFastCrossoverExit : na
+longFastCrossoverThresholdPlot =
+     plotProfitProximityTicks * syminfo.mintick > longFastCrossoverExit - high ? longFastCrossoverExit : na
+shortFastCrossoverThresholdPlot =
+     plotProfitProximityTicks * syminfo.mintick > low - shortFastCrossoverExit ? shortFastCrossoverExit : na
+fastCrossoverThrehsoldPlot =
+     position >= 1 and not isExitLongFastCrossoverEnabled ? longFastCrossoverThresholdPlot :
+     position <= -1 and not isExitShortFastCrossoverEnabled ? shortFastCrossoverThresholdPlot : na
+plot(fastCrossoverThrehsoldPlot, "fastCrossoverThreshold", color = color.new(profitColor, transparencyThree),
+     linewidth = 5, style = plot.style_linebr, editable = false)
+plotshape(fastCrossoverThresholdPrice, "fastCrossoverThresholdPrice", shape.circle, location.absolute,
+     color.new(profitColor, transparencyThree), size = size.tiny, editable = false)
+plotshape(fastCrossoverPrice, "fastCrossover", shape.circle, location.absolute,
+     color.new(profitColor, transparencyOne), size = size.tiny, editable = false)
+
+// take profit
+longTakeProfitPlot = plotProfitProximityTicks * syminfo.mintick > longTakeProfit - high ? longTakeProfit : na
+shortTakeProfitPlot = plotProfitProximityTicks * syminfo.mintick > low - shortTakeProfit ? shortTakeProfit : na
+takeProfitPlot =
+     position >= 1 ? longTakeProfitPlot :
+     position <= -1 ? shortTakeProfitPlot : na
+takeProfitShapePrice =
+     isExitLongTakeProfit ? longTakeProfit :
+     isExitShortTakeProfit ? shortTakeProfit : na
+plot(takeProfitPlot, "takeProfit", color.new(profitColor, transparencyTwo), 2, plot.style_linebr, editable = false)
+plotshape(takeProfitShapePrice, "takeProfit", shape.circle, location.absolute,
+     color.new(profitColor, transparencyTwo), size = size.tiny, editable = false)
+
+// exit max drawdown
+plotshape(isExitLongMaxDrawdown ? open : na, "isExitLongMaxDrawdown", shape.circle, location.absolute,
+     color.new(shortColor, transparencyTwo), size = size.tiny, editable = false)
+plotshape(isExitShortMaxDrawdown ? open : na, "isExitShortMaxDrawdown", shape.circle, location.absolute,
+     color.new(longColor, transparencyTwo), size = size.tiny, editable = false)
+
+// label p&l
+label_profit(tradeNum, isClosed, isPyramid) =>
+
+    profit = isClosed ? strategy.closedtrades.profit(tradeNum) * strategyEquityRatio :
+          strategy.opentrades.profit(tradeNum) * strategyEquityRatio
+
+    label = isPyramid ? "\n" + str.tostring(math.round(math.abs(profit))) :
+          str.tostring(math.round(math.abs(profit)))
+
+    label.new(
+          bar_index,
+          isClosed ? eventPrice : close,
+          label,
+          size = isClosed ? size.normal : size.large,
+          color = transparentColor,
+          style = (position >= 1 and profit > 0) or (position <= -1 and 0 > profit) ?
+               label.style_label_down : label.style_label_up,
+          textcolor =
+               barstate.isnew and not isClosed and isLastBarMarketOpen ? transparentColor : // fixes ghost label repainting bug
+               profit > 0 and isClosed ? color.new(profitColor, transparencyTwo) :
+               profit > 0 ? color.new(profitColor, transparencyOne) :
+               isClosed ? color.new(lossColor, transparencyTwo) :
+               color.new(lossColor, transparencyOne))
+
+// p&l on closed trades
+var tradeNumber = 0
+if isExitLong[1] or isExitShort[1]
+
+    label_profit(tradeNumber, true, false)
+    tradeNumber += 1
+
+    // pyramid
+    if str.contains(strategy.closedtrades.entry_id(tradeNumber), "Pyramid")
+        label_profit(tradeNumber, true, true)
+        tradeNumber += 1
+
+// p&l on open trades
+if position != 0
+     and isLastBar
+     and strategy.opentrades.profit(0) != 0
+
+    label_profit(0, false, false)
+    str.contains(strategy.opentrades.entry_id(1), "Pyramid") ? label_profit(1, false, true) : na
+
+// cloud
+plotLow = plot(low, color = transparentColor, editable = false)
+plotHigh = plot(high, color = transparentColor, editable = false)
+fill(plotLow, plotHigh, color.new(tickerColor, transparencyFour), title = "cloud", display = display.none)
+
+// candles
+plotcandle(low, high, low, low, "candles", na,
+     color.new(flatColor, transparencyThree), bordercolor = transparentColor, editable = true, display = display.none)
+
+// strategy summary
+isShowSummary = input(false, 'summary')
+assetName =
+     str.contains(str.upper(syminfo.description), 'NASDAQ') ? 'NASDAQ 100' :
+     str.contains(str.upper(syminfo.description), 'S&P') ? 'S&P 500' :
+     str.contains(str.upper(syminfo.description), 'RUSSELL') ? 'RUSSELL 2000' :
+     str.contains(str.upper(syminfo.description), 'DOW') ? 'DOW 40' :
+     str.contains(str.upper(syminfo.description), 'STOXX') ? 'STOXX 50' :
+     syminfo.description
+strategySummary =
+     assetName + '\n' +
+     '\n' +
+     'startDate: ' + startDate + '\n' +
+     'endDate: ' + endDate + '\n' +
+     '\n' +
+     'fastMinutes: ' + str.tostring(fastMinutes) + '\n' +
+     'disableEntryMinutes: ' + str.tostring(disableEntryMinutes) + '\n' +
+     'fastMomentumMinutes: ' + str.tostring(fastMomentumMinutes) + '\n' +
+     'fastCrossoverPercent: ' + str.tostring(fastCrossoverPercent) + '\n' +
+     'takeProfitPercent: ' + str.tostring(takeProfitPercent) + '\n' +
+     'fastAngleFactor: ' + str.tostring(fastAngleFactor) + '\n' +
+     'slowMinutes: ' + str.tostring(slowMinutes) + '\n' +
+     'slowAngleFactor: ' + str.tostring(slowAngleFactor) + '\n' +
+     'entryRestrictionMinutes: ' + str.tostring(entryRestrictionMinutes) + '\n' +
+     'entryRestrictionPercent: ' + str.tostring(entryRestrictionPercent) + '\n' +
+     '\n' +
+     'coolOffMinutes: ' + str.tostring(coolOffMinutes) + '\n' +
+     'positionEntryMinutes: ' + str.tostring(positionEntryMinutes) + '\n' +
+     'analysisDrawdown : ' + str.tostring(analysisDrawdown)
+table.cell(
+     table.new(position.middle_left, 1, 1),
+     0, 0,
+     strategySummary,
+     text_color = isShowSummary ? color.new(tickerColor, transparencyOne) : transparentColor,
+     text_size = size.normal,
+     text_halign = text.align_left,
+     bgcolor = transparentColor)
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// label debug
+// label_debug(staggerTicks, value, valueText = "") =>
+//     label.new(
+//      bar_index,
+//      high + staggerTicks,
+//      valueText + str.tostring(value),
+//      size = size.normal,
+//      color = color.black,
+//      textcolor = color.white)
