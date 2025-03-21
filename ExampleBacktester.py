@@ -20,4 +20,4 @@ print(stats)
 filename = "df_prices.xlsx"
 df_prices.to_excel(filename)
 
-bt.plot() # todo backtesting.py does not appear able to plot 1m candles?
+# bt.plot()

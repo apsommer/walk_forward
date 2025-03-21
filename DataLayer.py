@@ -18,11 +18,11 @@ def getPrices(
         end=ending_date)
                  .to_df())
 
-    # normalize timestamps
+    # normalize timestamps todo backtesting plotter doesn't like some timestamps
     df_prices.index = df_prices.index.tz_localize(None)
 
     # scrub dataframe
-    df_prices.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"},inplace=True)
+    df_prices.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"}, inplace=True)
     df_prices.index.rename("timestamp", inplace=True)
     clean_df_prices = df_prices[df_prices.columns.drop(['symbol', 'rtype', 'instrument_id', 'publisher_id', 'volume'])]
 

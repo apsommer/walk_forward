@@ -1,12 +1,12 @@
 import requests
 import pandas as pd
+import local.api_keys as keys
 
-API_KEY = '_gDUH1xTONS4LP_ao38ZUEe9Wox71CoDFr_6p2'
 BASE_URL = 'https://api.polygon.io'
 
 def get_histdata_polygon(ticker, start_date, end_date, timespan, multiplier):
 
-    url = f"{BASE_URL}/v2/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/{start_date}/{end_date}?apiKey={API_KEY}"
+    url = f"{BASE_URL}/v2/aggs/ticker/{ticker}/range/{multiplier}/{timespan}/{start_date}/{end_date}?apiKey={keys.polygon_api_key}"
 
     response = requests.get(url)
 

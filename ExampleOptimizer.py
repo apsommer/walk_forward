@@ -16,7 +16,7 @@ bt = Backtest(df_prices, BuyLowSellHighStrategy, cash=initial_cash, commission=0
 stats = bt.run()
 print(stats)
 
-# optimize / sweep params for lookback periods
+# optimize by sweep params for lookback periods n_high, n_low
 stats, heatmap = bt.optimize(
     n_high=range(20, 60, 10), # optimization steps range(low, high, step)
     n_low=range(20, 60, 10), # optimization steps range(low, high, step)
