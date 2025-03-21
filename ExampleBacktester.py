@@ -15,11 +15,13 @@ df_prices = dl.getPrices(
 
 bt = Backtest(df_prices, BuyLowSellHighStrategy, cash=10_000_000, commission=0, exclusive_orders=True)
 stats = bt.run()
+
+# write
+# df_prices.to_excel("df_prices.xlsx")
+df_prices.to_csv("df_prices.csv")
+stats.to_csv("stats.csv")
 print(stats)
 
-filename = "df_prices.xlsx"
-df_prices.to_excel(filename)
-
-# bt.plot(results=stats)
+# plot
 plt.plot(df_prices)
 plt.show()
