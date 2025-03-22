@@ -150,8 +150,26 @@ class LiveStrategy(Strategy):
         elif (isEntryShort and self.takeProfit != 0):
             shortTakeProfit = (1 - self.takeProfit) * fast
 
-        isExitLongTakeProfit = True if (self.position.is_long and high > longTakeProfit) else False
-        isExitShortTakeProfit = True if (self.position.is_short and shortTakeProfit > low) else False
+        isExitLongTakeProfit = True if (
+            self.position.is_long
+            and high > longTakeProfit
+        ) else False
+
+        isExitShortTakeProfit = True if (
+            self.position.is_short
+            and shortTakeProfit > low
+        ) else False
 
         # exits
+        isExitLong = (
+            isExitLongFastCrossover
+            or isExitLongFastMomentum
+            or isExitLongTakeProfit
+        )
+        isExitShort = (
+            isExitShortFastCrossover
+            or isExitShortFastMomentum
+            or isExitShortTakeProfit
+        )
+
         
