@@ -19,17 +19,15 @@ class LiveStrategy(Strategy):
     coolOffMinutes = 5
     positionEntryMinutes = 1
 
-    # constants
-    fastAngle = fastAngleFactor / 1000.0
-    slowAngle = slowAngleFactor / 1000.0
-    takeProfit = takeProfitPercent / 100.0
+    def init(self):
 
-    fastCrossover = (fastCrossoverPercent / 100.0) * takeProfit
-    if takeProfit == 0:
-        fastCrossover = fastCrossoverPercent / 100.0
+        self.fastAngle = self.fastAngleFactor / 1000.0
+        self.slowAngle = self.slowAngleFactor / 1000.0
+        self.takeProfit = self.takeProfitPercent / 100.0
 
-    # todo ?
-    # def init(self):
+        self.fastCrossover = (self.fastCrossoverPercent / 100.0) * self.takeProfit
+        if self.takeProfit == 0:
+            self.fastCrossover = self.fastCrossoverPercent / 100.0
 
     def next(self):
 
@@ -43,24 +41,28 @@ class LiveStrategy(Strategy):
 
         fast = rawFast.ewm(min_periods=5)
         slow = rawSlow.ewm(min_periods=200)
-        normalizedFastPrice = ((fast - fast[1]) / fast) * 100 # todo should be / fast[1]
-        normalizedSlowPrice = ((slow - slow[1]) / slow) * 100# todo should be / slow[1]
+        normalizedFastPrice = ((fast - fast[-1]) / fast[-1]) * 100 # todo should be / fast[1]
+        normalizedSlowPrice = ((slow - slow[-1]) / slow[-1]) * 100# todo should be / slow[1]
         fastSlope = np.rad2deg(np.arctan(normalizedFastPrice))
         slowSlope = np.rad2deg(np.arctan(normalizedSlowPrice))
 
         # price crosses through fast average in favorable direction
-        isFastCrossoverLong = ((fastSlope > self.fastAngle and
-                               (fast > open or fast > close[1])) and
-                               high > fast)
-        isFastCrossoverShort = ((-self.fastAngle > fastSlope and
-                                (open > fast or close[1] > fast)) and
-                                fast > low)
+        isFastCrossoverLong = (
+            (fastSlope > self.fastAngle
+            and (fast > open or fast > close[-1]))
+            and high > fast)
+        isFastCrossoverShort = (
+            (-self.fastAngle > fastSlope
+            and (open > fast or close[-1] > fast))
+            and fast > low)
 
         # allow entry only during starting minutes of trend
-        if (np.min(fastSlope, self.disableEntryMinutes) > 0 and self.disableEntryMinutes != 0):
-            self.isEntryLongDisabled = True
-        if (0 > np.max(fastSlope, self.disableEntryMinutes) and self.disableEntryMinutes != 0):
-            self.isEntryShortDisabled = True
+        if (np.min(fastSlope, self.disableEntryMinutes) > 0
+            and self.disableEntryMinutes != 0):
+                self.isEntryLongDisabled = True
+        if (0 > np.max(fastSlope, self.disableEntryMinutes)
+            and self.disableEntryMinutes != 0):
+                self.isEntryShortDisabled = True
 
         # handle short volatility todo can remove or simplify?
         if (fast > np.max(open, self.positionEntryMinutes) or self.positionEntryMinutes == 0):
@@ -93,7 +95,7 @@ class LiveStrategy(Strategy):
         elif (isEntryLong):
             longFastCrossoverExit = (1 + self.fastCrossover) * fast
         elif (self.position.is_long):
-            longFastCrossoverExit = longFastCrossoverExit[1]
+            longFastCrossoverExit = longFastCrossoverExit[-1]
 
         shortFastCrossoverExit = None
         if (self.fastCrossover == 0):
@@ -101,17 +103,17 @@ class LiveStrategy(Strategy):
         elif (isEntryShort):
             shortFastCrossoverExit = (1 - self.fastCrossover) * fast
         elif (self.position.is_short):
-            shortFastCrossoverExit = shortFastCrossoverExit[1]
+            shortFastCrossoverExit = shortFastCrossoverExit[-1]
 
         # todo omit isExitLong[1] condition as the array does not exist yet
         isExitLongFastCrossoverEnabled = False
-        if (isExitLongFastCrossoverEnabled[1]):
+        if (isExitLongFastCrossoverEnabled[-1]):
             isExitLongFastCrossoverEnabled = True
         elif self.position.is_long and high > longFastCrossoverExit:
             isExitLongFastCrossoverEnabled = False
 
         isExitShortFastCrossoverEnabled = False
-        if (isExitShortFastCrossoverEnabled[1]):
+        if (isExitShortFastCrossoverEnabled[-1]):
             isExitShortFastCrossoverEnabled = True
         elif self.position.is_short and shortFastCrossoverExit > low:
             isExitShortFastCrossoverEnabled = False
@@ -140,13 +142,13 @@ class LiveStrategy(Strategy):
         # take profit
         longTakeProfit = None
         if (self.position.is_long):
-            longTakeProfit = longTakeProfit[1]
+            longTakeProfit = longTakeProfit[-1]
         elif (isEntryLong and self.takeProfit != 0):
             longTakeProfit = (1 +self.takeProfit) * fast
 
         shortTakeProfit = None
         if (self.position.is_short):
-            shortTakeProfit = shortTakeProfit[1]
+            shortTakeProfit = shortTakeProfit[-1]
         elif (isEntryShort and self.takeProfit != 0):
             shortTakeProfit = (1 - self.takeProfit) * fast
 
@@ -169,3 +171,14 @@ class LiveStrategy(Strategy):
             isExitShortFastCrossover
             or isExitShortFastMomentum
             or isExitShortTakeProfit)
+
+        ################################################################################################################
+
+        if (isEntryLong):
+            self.buy()
+        elif (isEntryShort):
+            self.sell()
+        elif (isExitLong):
+            self.sell()
+        elif (isExitShort):
+            self.buy()
