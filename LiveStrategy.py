@@ -36,13 +36,13 @@ class LiveStrategy(Strategy):
         low = self.data.Low
         close = self.data.Close
 
-        rawFast = pd.Series(open).ewm(min_periods=self.fastMinutes)
-        rawSlow = pd.Series(open).ewm(min_periods=self.slowMinutes)
+        rawFast = pd.Series(open).rolling(window=self.fastMinutes, win_type='exponential')
+        rawSlow = pd.Series(open).rolling(window=self.slowMinutes, win_type='exponential')
+        fast = rawFast.rolling(window=5, win_type='exponential')
+        slow = rawSlow.rolling(window=200, win_type='exponential')
 
-        fast = rawFast.ewm(min_periods=5)
-        slow = rawSlow.ewm(min_periods=200)
-        normalizedFastPrice = ((fast - fast[-1]) / fast[-1]) * 100 # todo should be / fast[1]
-        normalizedSlowPrice = ((slow - slow[-1]) / slow[-1]) * 100# todo should be / slow[1]
+        normalizedFastPrice = ((fast - fast[-1]) / fast[-1]) * 100
+        normalizedSlowPrice = ((slow - slow[-1]) / slow[-1]) * 100
         fastSlope = np.rad2deg(np.arctan(normalizedFastPrice))
         slowSlope = np.rad2deg(np.arctan(normalizedSlowPrice))
 
