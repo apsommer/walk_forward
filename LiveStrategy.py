@@ -73,18 +73,18 @@ class LiveStrategy(Strategy):
         # todo entry restriction idea
 
         # entries
-        isEntryLong = (self.position == 0
-                       and isFastCrossoverLong
-                       and not self.isEntryDisabled
-                       and not self.isEntryLongDisabled
-                       and self.isEntryLongEnabled
-                       and slowSlope > self.slowAngle)
-        isEntryShort = (self.position == 0
-                         and isFastCrossoverShort
-                         and not self.isEntryDisabled
-                         and not self.isEntryShortDisabled
-                         and self.isEntryShortEnabled
-                         and -self.slowAngle > slowSlope)
+        isEntryLong = (
+            self.position == 0
+           and isFastCrossoverLong
+           and not self.isEntryLongDisabled
+           and self.isEntryLongEnabled
+           and slowSlope > self.slowAngle)
+        isEntryShort = (
+            self.position.size == 0
+            and isFastCrossoverShort
+            and not self.isEntryShortDisabled
+            and self.isEntryShortEnabled
+            and -self.slowAngle > slowSlope)
 
         # exit crossing back into fast in unfavorable direction
         longFastCrossoverExit = None
@@ -103,7 +103,7 @@ class LiveStrategy(Strategy):
         elif (self.position.is_short):
             shortFastCrossoverExit = shortFastCrossoverExit[1]
 
-        # todo isExitLong[1] condition as the array does not exist yet
+        # todo omit isExitLong[1] condition as the array does not exist yet
         isExitLongFastCrossoverEnabled = False
         if (isExitLongFastCrossoverEnabled[1]):
             isExitLongFastCrossoverEnabled = True
@@ -117,14 +117,14 @@ class LiveStrategy(Strategy):
             isExitShortFastCrossoverEnabled = False
 
         isExitLongFastCrossover = True if (
-                isExitLongFastCrossoverEnabled
-                and self.position.is_long
-                and fast > low) else False
+            isExitLongFastCrossoverEnabled
+            and self.position.is_long
+            and fast > low) else False
 
         isExitShortFastCrossover = True if (
-                isExitShortFastCrossoverEnabled
-                and self.position.is_short
-                and high > fast) else False
+            isExitShortFastCrossoverEnabled
+            and self.position.is_short
+            and high > fast) else False
 
         # exit due to excessive momentum in unfavorable direction
         isExitLongFastMomentum = True if (
@@ -164,12 +164,8 @@ class LiveStrategy(Strategy):
         isExitLong = (
             isExitLongFastCrossover
             or isExitLongFastMomentum
-            or isExitLongTakeProfit
-        )
+            or isExitLongTakeProfit)
         isExitShort = (
             isExitShortFastCrossover
             or isExitShortFastMomentum
-            or isExitShortTakeProfit
-        )
-
-        
+            or isExitShortTakeProfit)
