@@ -14,8 +14,8 @@ class BuyLowSellHighStrategy(Strategy):
     def init(self):
 
         # define indicators
-        self.high_watermark = self.I(high_watermark, self.data.Close, self.n_high)
-        self.low_watermark = self.I(low_watermark, self.data.Close, self.n_low)
+        self.high_watermark = self.I(high_watermark, self.data.High, self.n_high)
+        self.low_watermark = self.I(low_watermark, self.data.Low, self.n_low)
 
     def next(self):
 
