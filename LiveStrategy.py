@@ -87,6 +87,41 @@ class LiveStrategy(Strategy):
                          and -self.slowAngle > slowSlope)
 
         # exit crossing back into fast in unfavorable direction
+        longFastCrossoverExit = None
+        if (self.fastCrossover == 0):
+            longFastCrossoverExit = None
+        elif (isEntryLong):
+            longFastCrossoverExit = (1 + self.fastCrossover) * fast
+        elif (self.position.is_long):
+            longFastCrossoverExit = longFastCrossoverExit[1]
+
+        shortFastCrossoverExit = None
+        if (self.fastCrossover == 0):
+            shortFastCrossoverExit = None
+        elif (isEntryShort):
+            shortFastCrossoverExit = (1 - self.fastCrossover) * fast
+        elif (self.position.is_short):
+            shortFastCrossoverExit = shortFastCrossoverExit[1]
+
+        # todo isExitLong[1] condition as the array does not exist yet
+        isExitLongFastCrossoverEnabled = False
+        if (isExitLongFastCrossoverEnabled[1]):
+            isExitLongFastCrossoverEnabled = True
+        elif self.position.is_long and high > longFastCrossoverExit:
+            isExitLongFastCrossoverEnabled = False
+
+        isExitShortFastCrossoverEnabled = False
+            if (isExitShortFastCrossoverEnabled[1]):
+                isExitShortFastCrossoverEnabled = True
+            elif self.position.is_short and shortFastCrossoverExit > low:
+                isExitShortFastCrossoverEnabled = False
+
+        
+
+
+
+
+
 
         # exit due to excessive momentum in unfavorable direction
 
