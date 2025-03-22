@@ -126,11 +126,29 @@ class LiveStrategy(Strategy):
                 and self.position.is_short
                 and high > fast) else False
 
-
-
-
-        # exit due to excessive momentum in unfavorable direction
+        # todo exit due to excessive momentum in unfavorable direction
 
         # take profit
+        longTakeProfit = None
+        if (self.position.is_long):
+            longTakeProfit = longTakeProfit[1]
+        elif (isEntryLong and self.takeProfit != 0):
+            longTakeProfit = (1 +self.takeProfit) * fast
+
+        shortTakeProfit = None
+        if (self.position.is_short):
+            shortTakeProfit = shortTakeProfit[1]
+        elif (isEntryShort and self.takeProfit != 0):
+            shortTakeProfit = (1 - self.takeProfit) * fast
+            
+        isExitLongTakeProfit = True if (self.position.is_long and high > longTakeProfit) else False
+        isExitShortTakeProfit = True if (self.position.is_short and shortTakeProfit > low) else False
+
+
+
+
+
+
+
 
         # exits
