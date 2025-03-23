@@ -5,13 +5,20 @@ from decimal import Decimal, getcontext
 
 getcontext().prec = 10
 
-def ema(prices, minutes, smoothingMinutes):
-    raw = pd.DataFrame(prices).rolling(window=minutes, win_type='exponential').mean()
-    smooth = raw.rolling(window=smoothingMinutes, win_type='exponential').mean()
+def ema(prices, bars, smooth):
+    raw = pd.DataFrame(prices).rolling(window=bars, win_type='exponential').mean()
+    smooth = raw.rolling(window=smooth, win_type='exponential').mean()
     return np.array(smooth)
 
 def initArray(prices):
     return np.array(prices)
+
+def getSlope(prices, bars, smooth):
+    res = ema(prices, bars, smooth)
+    diff = res - res[-1]
+    pdiff = (diff / res[-1]) * 100
+    slope = np.rad2deg(np.arctan(pdiff))
+    return slope
 
 class LiveStrategy(Strategy):
 
@@ -49,6 +56,8 @@ class LiveStrategy(Strategy):
         # exponential moving average
         self.fast = self.I(ema, self.ohlc4, self.fastMinutes, 5)
         self.slow = self.I(ema, self.ohlc4, self.slowMinutes, 200)
+        self.fastSlope = self.I(getSlope, self.ohlc4, self.fastMinutes, 5)
+        self.slowSlope = self.I(getSlope, self.ohlc4, self.slowMinutes, 200)
 
         # horizontal price lines
         self.longFastCrossoverExit = self.I(initArray, self.ohlc4)
@@ -74,22 +83,19 @@ class LiveStrategy(Strategy):
         fastAngle = self.fastAngle
         takeProfit = self.takeProfit
         fast = self.fast
-        slow = self.slow
-
-        normalizedFastPrice = ((fast - fast[-1]) / fast[-1]) * 100
-        normalizedSlowPrice = ((slow - slow[-1]) / slow[-1]) * 100
-        fastSlope = np.rad2deg(np.arctan(normalizedFastPrice))
-        slowSlope = np.rad2deg(np.arctan(normalizedSlowPrice))
+        # slow = self.slow
+        fastSlope = self.fastSlope
+        slowSlope = self.slowSlope
 
         # price crosses through fast average in favorable direction
         isFastCrossoverLong = (
-            (fastSlope > fastAngle
-            and (fast > open or fast > close[-1]))
-            and high > fast)
+            (fastSlope[0] > fastAngle
+            and (fast[0] > open[0] or fast[0] > close[-1]))
+            and high[0] > fast[0])
         isFastCrossoverShort = (
-            (-fastAngle > fastSlope
-            and (open > fast or close[-1] > fast))
-            and fast > low)
+            (-fastAngle > fastSlope[0]
+            and (open[0] > fast[0] or close[-1] > fast[0]))
+            and fast[0] > low[0])
 
         # allow entry only during starting minutes of trend
         # if disableEntryMinutes == 0:
@@ -112,7 +118,7 @@ class LiveStrategy(Strategy):
             # and not isEntryLongDisabled
             and slowSlope > slowAngle)
         isEntryShort = (
-            position.size == 0
+            position == 0
             and isFastCrossoverShort
             # and not isEntryShortDisabled
             and -slowAngle > slowSlope)
@@ -133,23 +139,23 @@ class LiveStrategy(Strategy):
         isExitLongFastCrossover = True if (
             isExitLongFastCrossoverEnabled
             and is_long
-            and fast > low) else False
+            and fast > self.data.Low) else False
 
         isExitShortFastCrossover = True if (
             isExitShortFastCrossoverEnabled
             and is_short
-            and high > fast) else False
+            and self.data.High > fast) else False
 
         # exit due to excessive momentum in unfavorable direction
         isExitLongFastMomentum = True if (
                 fastMomentumMinutes != 0
                 and is_long
-                and -fastAngle > np.max(fastSlope, fastMomentumMinutes)) else False
+                and -fastAngle > fastSlope) else False
 
         isExitShortFastMomentum = True if (
             fastMomentumMinutes != 0
             and is_short
-            and np.min(fastSlope, fastMomentumMinutes) > fastAngle) else False
+            and fastSlope > fastAngle) else False
 
         # take profit
         if is_long:
@@ -192,4 +198,3 @@ class LiveStrategy(Strategy):
             self.position.close()
         elif (isExitShort):
             self.position.close()
-

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from LiveStrategy import LiveStrategy
 
 # constants
-starting_date = "2024-12-01"
+starting_date = "2024-10-01"
 ending_date = "2025-01-01"
 schema = "ohlcv-1m"
 
