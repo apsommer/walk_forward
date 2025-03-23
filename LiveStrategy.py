@@ -2,6 +2,14 @@ import numpy as np
 import pandas as pd
 from backtesting import Strategy
 
+def fast(fastMinutes):
+    rawFast = pd.DataFrame(open).rolling(window=fastMinutes, win_type='exponential').mean()
+    return rawFast.rolling(window=5, win_type='exponential').mean()
+
+def slow(slowMinutes):
+    rawSlow = pd.DataFrame(open).rolling(window=slowMinutes, win_type='exponential').mean()
+    return rawSlow.rolling(window=200, win_type='exponential').mean()
+
 class LiveStrategy(Strategy):
 
     # optimization params
@@ -29,11 +37,8 @@ class LiveStrategy(Strategy):
 
     def init(self):
 
-        self.rawFast = self.I
-        self.fast = self.I
-
-        self.rawSlow = self.I
-        self.slow = self.I
+        self.fast = self.I(fast, self.fastMinutes)
+        self.slow = self.I(slow, self.slowMinutes)
 
         self.fastSlope = self.I
         self.slowSlope = self.I
@@ -60,11 +65,11 @@ class LiveStrategy(Strategy):
         low = self.data.Low
         close = self.data.Close
 
-        self.rawFast = pd.DataFrame(open).rolling(window=self.fastMinutes, win_type='exponential').mean()
-        self.fast = self.rawFast.rolling(window=5, win_type='exponential').mean()
+        # self.rawFast = pd.DataFrame(open).rolling(window=self.fastMinutes, win_type='exponential').mean()
+        # self.fast = self.rawFast.rolling(window=5, win_type='exponential').mean()
 
-        self.rawSlow = pd.DataFrame(open).rolling(window=self.slowMinutes, win_type='exponential').mean()
-        self.slow = self.rawSlow.rolling(window=200, win_type='exponential').mean()
+        # self.rawSlow = pd.DataFrame(open).rolling(window=self.slowMinutes, win_type='exponential').mean()
+        # self.slow = self.rawSlow.rolling(window=200, win_type='exponential').mean()
 
         normalizedFastPrice = ((self.fast - self.fast[-1]) / self.fast[-1]) * 100
         normalizedSlowPrice = ((self.slow - self.slow[-1]) / self.slow[-1]) * 100
