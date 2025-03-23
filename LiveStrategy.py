@@ -47,7 +47,7 @@ class LiveStrategy(Strategy):
         self.ohlc4 = (self.open + self.high + self.low + self.close) / 4
 
         # exponential moving average
-        # self.fast = self.I(ema, ohlc4, self.fastMinutes, 5)
+        self.fast = self.I(ema, self.ohlc4, self.fastMinutes, 5)
         self.slow = self.I(ema, self.ohlc4, self.slowMinutes, 200)
 
         # horizontal price lines
@@ -64,7 +64,7 @@ class LiveStrategy(Strategy):
         close = self.close
         ohlc4 = self.ohlc4
 
-        disableEntryMinutes = self.disableEntryMinutes
+        # disableEntryMinutes = self.disableEntryMinutes
         slowAngle = self.slowAngle
         position = self.position
         is_long = self.position.is_long
@@ -73,26 +73,21 @@ class LiveStrategy(Strategy):
         fastMomentumMinutes = self.fastMomentumMinutes
         fastAngle = self.fastAngle
         takeProfit = self.takeProfit
-        # fast = self.fast
+        fast = self.fast
         slow = self.slow
 
-        fast = ema(
-            ohlc4,
-            self.fastMinutes,
-            5)
-
-        fastDiff = fast - fast[-1]
-        fastSlope = np.rad2deg(np.arctan(fastDiff))
-
-        slowSlope = 42.2
+        normalizedFastPrice = ((fast - fast[-1]) / fast[-1]) * 100
+        normalizedSlowPrice = ((slow - slow[-1]) / slow[-1]) * 100
+        fastSlope = np.rad2deg(np.arctan(normalizedFastPrice))
+        slowSlope = np.rad2deg(np.arctan(normalizedSlowPrice))
 
         # price crosses through fast average in favorable direction
         isFastCrossoverLong = (
-            (fastSlope[0] > fastAngle
+            (fastSlope > fastAngle
             and (fast > open or fast > close[-1]))
             and high > fast)
         isFastCrossoverShort = (
-            (-fastAngle > fastSlope[0]
+            (-fastAngle > fastSlope
             and (open > fast or close[-1] > fast))
             and fast > low)
 
