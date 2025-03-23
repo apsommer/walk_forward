@@ -7,7 +7,7 @@ import local.api_keys as keys
 client = db.Historical(keys.bento_api_key)
 
 def getPrices(
-    starting_date = "2024-10-15",
+    starting_date = "2024-12-01",
     ending_date = "2025-01-01",
     schema = "ohlcv-1m"):
 
