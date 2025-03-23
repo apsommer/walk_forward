@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from LiveStrategy import LiveStrategy
 
 # constants
-starting_date = "2024-07-01"
+starting_date = "2024-12-01"
 ending_date = "2025-01-01"
 schema = "ohlcv-1m"
 
@@ -25,8 +25,8 @@ stats = bt.run()
 
 # write
 # df_prices.to_excel("df_prices.xlsx")
-df_prices.to_csv("df_prices.csv")
-stats.to_csv("stats.csv")
+# df_prices.to_csv("df_prices.csv")
+# stats.to_csv("stats.csv")
 print(stats)
 
 # plot
