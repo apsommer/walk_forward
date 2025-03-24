@@ -38,7 +38,7 @@ class LiveStrategy(Strategy):
     fastAngle = fastAngleFactor / 1000.0
     slowAngle = slowAngleFactor / 1000.0
     takeProfit = takeProfitPercent / 100.0
-    fastCrossover = fastCrossoverPercent / 100.0 if takeProfit == 0 else fastCrossover = (fastCrossoverPercent / 100.0) * takeProfit
+    fastCrossover = fastCrossoverPercent / 100.0 if takeProfit == 0 else (fastCrossoverPercent / 100.0) * takeProfit
 
     def init(self):
         super().init()
@@ -59,6 +59,10 @@ class LiveStrategy(Strategy):
         self.shortFastCrossoverExit = None
         self.longExitBarIndex = 0
         self.shortExitBarIndex = 0
+        self.isExitLongFastCrossoverEnabled = False
+        self.isExitShortFastCrossoverEnabled = False
+        self.longTakeProfit = None
+        self.shortTakeProfit = None
 
     def next(self):
         super().next()
@@ -126,62 +130,50 @@ class LiveStrategy(Strategy):
             and hasShortEntryDelayElapsed)
 
         # exit crossing back into fast in unfavorable direction
-        self.longFastCrossoverExit = self.longFastCrossoverExit if is_long else (1 + fastCrossover) * fast[-1] if isEntryLong else None
-        self.shortFastCrossoverExit = self.shortFastCrossoverExit if is_short else (1 - fastCrossover) * fast[-1] if isEntryShort else None
+        self.longFastCrossoverExit = self.longFastCrossoverExit if is_long else \
+            (1 + fastCrossover) * fast[-1] if isEntryLong else None
+        self.shortFastCrossoverExit = self.shortFastCrossoverExit if is_short else \
+            (1 - fastCrossover) * fast[-1] if isEntryShort else None
 
-        isExitLongFastCrossover = True if (
-            self.longFastCrossoverExit is not None
-            and high[-1] > self.longFastCrossoverExit
-            and is_long
-            and fast[-1] > low[-1]) else False
+        self.isExitLongFastCrossoverEnabled = \
+            True if self.isExitLongFastCrossoverEnabled else \
+                True if is_long and high[-1] > self.longFastCrossoverExit else False
+        self.isExitShortFastCrossoverEnabled = \
+            True if self.isExitShortFastCrossoverEnabled else \
+                True if is_short and self.shortFastCrossoverExit > low[-1] else False
 
-        isExitShortFastCrossover = True if (
-            self.shortFastCrossoverExit is not None
-            and self.shortFastCrossoverExit > low[-1]
-            and is_short
-            and high[-1] > fast[-1]) else False
+        isExitLongFastCrossover = \
+            True if self.isExitLongFastCrossoverEnabled and is_long and fast[-1] > low[-1] else False
+        isExitShortFastCrossover = \
+            True if self.isExitShortFastCrossoverEnabled and is_short and high[-1] > fast[-1] else False
 
         # exit due to excessive momentum in unfavorable direction
-        isExitLongFastMomentum = True if (
-            fastMomentumMinutes != 0
-            and is_long
-            and -fastAngle > fastSlope[-1]) else False
-
-        isExitShortFastMomentum = True if (
-            fastMomentumMinutes != 0
-            and is_short
-            and fastSlope[-1] > fastAngle) else False
+        isExitLongFastMomentum = \
+            True if fastMomentumMinutes != 0 and is_long and -fastAngle > fastSlope[-1] else False
+        isExitShortFastMomentum = \
+            True if fastMomentumMinutes != 0 and is_short and fastSlope[-1] > fastAngle else False
 
         # take profit
-        # if is_long:
-        #     self.longTakeProfit = self.longTakeProfit[-1]
-        # elif isEntryLong and self.takeProfit != 0:
-        #     self.longTakeProfit = (1 + takeProfit) * fast[-1]
-        #
-        # if is_short:
-        #     self.shortTakeProfit = self.shortTakeProfit[-1]
-        # elif isEntryShort and takeProfit != 0:
-        #     self.shortTakeProfit = (1 - takeProfit) * fast[-1]
-        #
-        # isExitLongTakeProfit = True if (
-        #     is_long
-        #     and high > self.longTakeProfit
-        # ) else False
-        #
-        # isExitShortTakeProfit = True if (
-        #     is_short
-        #     and self.shortTakeProfit > low
-        # ) else False
+        self.longTakeProfit = \
+            self.longTakeProfit if is_long else \
+            (1 + takeProfit) * fast[-1] if isEntryLong and self.takeProfit != 0 else None
+        self.shortTakeProfit = \
+            self.shortTakeProfit if is_short else \
+            (1 - takeProfit) * fast[-1] if isEntryShort and takeProfit != 0 else None
+        isExitLongTakeProfit = \
+            True if is_long and high[-1] > self.longTakeProfit else False
+        isExitShortTakeProfit = \
+            True if is_short and self.shortTakeProfit > low[-1] else False
 
         # exits
         isExitLong = (
             isExitLongFastCrossover
-            or isExitLongFastMomentum)
-            # or isExitLongTakeProfit)
+            or isExitLongFastMomentum
+            or isExitLongTakeProfit)
         isExitShort = (
             isExitShortFastCrossover
-            or isExitShortFastMomentum)
-            # or isExitShortTakeProfit)
+            or isExitShortFastMomentum
+            or isExitShortTakeProfit)
 
         # track exit
         self.longExitBarIndex = bar_index if isExitLong else self.longExitBarIndex
@@ -195,11 +187,3 @@ class LiveStrategy(Strategy):
             self.position.close()) if isExitLong else (
             self.position.close()) if isExitShort else None
 
-        # if isEntryLong:
-        #     self.buy()
-        # elif isEntryShort:
-        #     self.sell()
-        # elif isExitLong:
-        #     self.position.close()
-        # elif isExitShort:
-        #     self.position.close()
