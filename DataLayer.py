@@ -27,6 +27,6 @@ def getPrices(
 
     # normalize timestamps
     df_prices.index = df_prices.index.tz_localize(None)
-    df_prices.index = pd.to_datetime(df_prices.index) #, format="%m/%d/%Y %I:%M:%S %p")
+    df_prices.index = pd.to_datetime(df_prices.index)
 
     return df_prices
