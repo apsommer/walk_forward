@@ -20,14 +20,13 @@ def getPrices(
         end=ending_date)
                  .to_df())
 
-    # normalize timestamps
-    df_prices.index = df_prices.index.tz_localize(None)
-    pd.to_datetime(df_prices.index)
-
-    # scrub dataframe
+    # rename, drop
     df_prices.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"}, inplace=True)
     df_prices.index.rename("timestamp", inplace=True)
-    clean_df_prices = df_prices[df_prices.columns.drop(['symbol', 'rtype', 'instrument_id', 'publisher_id', 'volume'])]
-    # print(clean_df_prices.to_markdown())
+    df_prices = df_prices[df_prices.columns.drop(['symbol', 'rtype', 'instrument_id', 'publisher_id', 'volume'])]
 
-    return clean_df_prices
+    # normalize timestamps
+    df_prices.index = df_prices.index.tz_localize(None)
+    df_prices.index = pd.to_datetime(df_prices.index) #, format="%m/%d/%Y %I:%M:%S %p")
+
+    return df_prices

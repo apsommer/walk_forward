@@ -1,10 +1,6 @@
 import numpy as np
 import pandas as pd
 from backtesting import Strategy
-from backtesting.lib import crossover
-from decimal import Decimal, getcontext
-
-getcontext().prec = 10
 
 def ema(prices, bars, smooth):
     raw = pd.DataFrame(prices).rolling(window=bars, win_type='exponential').mean()
@@ -47,6 +43,7 @@ class LiveStrategy(Strategy):
         fastCrossover = fastCrossoverPercent / 100.0
 
     def init(self):
+        super().init()
 
         self.open = self.data.Open
         self.high = self.data.High
@@ -58,10 +55,12 @@ class LiveStrategy(Strategy):
         self.slow = self.I(ema, self.ohlc4, self.slowMinutes, 200)
         self.fastSlope = self.I(getSlope, self.ohlc4, self.fastMinutes, 5)
         self.slowSlope = self.I(getSlope, self.ohlc4, self.slowMinutes, 200)
-        self.longFastCrossoverExit = self.I(initArray, np.ones(self.fast.size))
-        self.shortFastCrossoverExit = self.I(initArray, np.ones(self.fast.size))
+
+        self.longFastCrossoverExit = None
+        self.shortFastCrossoverExit = None
 
     def next(self):
+        super().next()
 
         open = self.data.Open
         high = self.data.High
@@ -119,21 +118,20 @@ class LiveStrategy(Strategy):
             and -slowAngle > slowSlope[-1])
 
         # exit crossing back into fast in unfavorable direction
-        lfcExit = self.longFastCrossoverExit[-1] if is_long else (1 + fastCrossover) * fast[-1] if isEntryLong else 1e-9
-        sfcExit = self.shortFastCrossoverExit[-1] if is_short else (1 - fastCrossover) * fast[-1] if isEntryShort else 1e9
-
-        isExitLongFastCrossoverEnabled = True if is_long and high[-1] > lfcExit else False
-        isExitShortFastCrossoverEnabled = True if is_short and sfcExit > low[-1] else False
+        self.longFastCrossoverExit = self.longFastCrossoverExit if is_long else (1 + fastCrossover) * fast[-1] if isEntryLong else None
+        self.shortFastCrossoverExit = self.shortFastCrossoverExit if is_short else (1 - fastCrossover) * fast[-1] if isEntryShort else None
 
         isExitLongFastCrossover = True if (
-            isExitLongFastCrossoverEnabled
-            and is_long
-            and fast[-1] > low[-1]) else False
+                self.longFastCrossoverExit is not None
+                and high[-1] > self.longFastCrossoverExit
+                and is_long
+                and fast[-1] > low[-1]) else False
 
         isExitShortFastCrossover = True if (
-            isExitShortFastCrossoverEnabled
-            and is_short
-            and high[-1] > fast[-1]) else False
+                self.shortFastCrossoverExit is not None
+                and self.shortFastCrossoverExit > low[-1]
+                and is_short
+                and high[-1] > fast[-1]) else False
 
         # exit due to excessive momentum in unfavorable direction
         isExitLongFastMomentum = True if (
