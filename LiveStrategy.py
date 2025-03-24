@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from backtesting import Strategy
+from backtesting.lib import crossover
 from decimal import Decimal, getcontext
 
 getcontext().prec = 10
@@ -25,13 +26,13 @@ class LiveStrategy(Strategy):
     # optimization params
     fastMinutes = 25
     disableEntryMinutes = 0
-    fastMomentumMinutes = 110.0
+    fastMomentumMinutes = 110
     fastCrossoverPercent = 0.40
     takeProfitPercent = 0.0
     fastAngleFactor = 20.0
     slowMinutes = 1555
     slowAngleFactor = 20.0
-    entryRestrictionMinutes = 15.0
+    entryRestrictionMinutes = 15
     entryRestrictionPercent = 0.0
 
     coolOffMinutes = 5
@@ -53,25 +54,19 @@ class LiveStrategy(Strategy):
         self.close = self.data.Close
         self.ohlc4 = (self.open + self.high + self.low + self.close) / 4
 
-        # exponential moving average
         self.fast = self.I(ema, self.ohlc4, self.fastMinutes, 5)
         self.slow = self.I(ema, self.ohlc4, self.slowMinutes, 200)
         self.fastSlope = self.I(getSlope, self.ohlc4, self.fastMinutes, 5)
         self.slowSlope = self.I(getSlope, self.ohlc4, self.slowMinutes, 200)
-
-        # horizontal price lines
-        self.longFastCrossoverExit = self.I(initArray, self.ohlc4)
-        self.shortFastCrossoverExit = self.I(initArray, self.ohlc4)
-        self.longTakeProfit = self.I(initArray, self.ohlc4)
-        self.shortTakeProfit = self.I(initArray, self.ohlc4)
+        self.longFastCrossoverExit = self.I(initArray, np.ones(self.fast.size))
+        self.shortFastCrossoverExit = self.I(initArray, np.ones(self.fast.size))
 
     def next(self):
 
-        open = self.open
-        high = self.high
-        low = self.low
-        close = self.close
-        ohlc4 = self.ohlc4
+        open = self.data.Open
+        high = self.data.High
+        low = self.data.Low
+        close = self.data.Close
 
         # disableEntryMinutes = self.disableEntryMinutes
         slowAngle = self.slowAngle
@@ -89,13 +84,13 @@ class LiveStrategy(Strategy):
 
         # price crosses through fast average in favorable direction
         isFastCrossoverLong = (
-            (fastSlope[0] > fastAngle
-            and (fast[0] > open[0] or fast[0] > close[-1]))
-            and high[0] > fast[0])
+            fastSlope[-1] > fastAngle
+            and fast[-1] > open[-1])
+            # and high[-1] > fast[-1])
         isFastCrossoverShort = (
-            (-fastAngle > fastSlope[0]
-            and (open[0] > fast[0] or close[-1] > fast[0]))
-            and fast[0] > low[0])
+            -fastAngle > fastSlope[-1]
+            and open[-1] > fast[-1])
+            # and fast[-1] > low[-1])
 
         # allow entry only during starting minutes of trend
         # if disableEntryMinutes == 0:
@@ -113,88 +108,82 @@ class LiveStrategy(Strategy):
 
         # entries
         isEntryLong = (
-            position == 0
+            position.size == 0
             and isFastCrossoverLong
             # and not isEntryLongDisabled
-            and slowSlope > slowAngle)
+            and slowSlope[-1] > slowAngle)
         isEntryShort = (
-            position == 0
+            position.size == 0
             and isFastCrossoverShort
             # and not isEntryShortDisabled
-            and -slowAngle > slowSlope)
+            and -slowAngle > slowSlope[-1])
 
         # exit crossing back into fast in unfavorable direction
-        if is_long:
-            self.longFastCrossoverExit = self.longFastCrossoverExit[-1]
-        if isEntryLong:
-            self.longFastCrossoverExit = (1 + fastCrossover) * fast
-        if is_short:
-            self.shortFastCrossoverExit = self.shortFastCrossoverExit[-1]
-        if isEntryShort:
-            self.shortFastCrossoverExit = (1 - fastCrossover) * fast
+        lfcExit = self.longFastCrossoverExit[-1] if is_long else (1 + fastCrossover) * fast[-1] if isEntryLong else 1e-9
+        sfcExit = self.shortFastCrossoverExit[-1] if is_short else (1 - fastCrossover) * fast[-1] if isEntryShort else 1e9
 
-        isExitLongFastCrossoverEnabled = True if is_long and high > self.longFastCrossoverExit else False
-        isExitShortFastCrossoverEnabled = True if is_short and self.shortFastCrossoverExit > low else False
+        isExitLongFastCrossoverEnabled = True if is_long and high[-1] > lfcExit else False
+        isExitShortFastCrossoverEnabled = True if is_short and sfcExit > low[-1] else False
 
         isExitLongFastCrossover = True if (
             isExitLongFastCrossoverEnabled
             and is_long
-            and fast > self.data.Low) else False
+            and fast[-1] > low[-1]) else False
 
         isExitShortFastCrossover = True if (
             isExitShortFastCrossoverEnabled
             and is_short
-            and self.data.High > fast) else False
+            and high[-1] > fast[-1]) else False
 
         # exit due to excessive momentum in unfavorable direction
         isExitLongFastMomentum = True if (
-                fastMomentumMinutes != 0
-                and is_long
-                and -fastAngle > fastSlope) else False
+            fastMomentumMinutes != 0
+            and is_long
+            and -fastAngle > fastSlope[-1]) else False
 
         isExitShortFastMomentum = True if (
             fastMomentumMinutes != 0
             and is_short
-            and fastSlope > fastAngle) else False
+            and fastSlope[-1] > fastAngle) else False
 
         # take profit
-        if is_long:
-            self.longTakeProfit = self.longTakeProfit[-1]
-        elif isEntryLong and self.takeProfit != 0:
-            self.longTakeProfit = (1 + takeProfit) * fast
-
-        if is_short:
-            self.shortTakeProfit = self.shortTakeProfit[-1]
-        elif isEntryShort and takeProfit != 0:
-            self.shortTakeProfit = (1 - takeProfit) * fast
-
-        isExitLongTakeProfit = True if (
-            is_long
-            and high > self.longTakeProfit
-        ) else False
-
-        isExitShortTakeProfit = True if (
-            is_short
-            and self.shortTakeProfit > low
-        ) else False
+        # if is_long:
+        #     self.longTakeProfit = self.longTakeProfit[-1]
+        # elif isEntryLong and self.takeProfit != 0:
+        #     self.longTakeProfit = (1 + takeProfit) * fast[-1]
+        #
+        # if is_short:
+        #     self.shortTakeProfit = self.shortTakeProfit[-1]
+        # elif isEntryShort and takeProfit != 0:
+        #     self.shortTakeProfit = (1 - takeProfit) * fast[-1]
+        #
+        # isExitLongTakeProfit = True if (
+        #     is_long
+        #     and high > self.longTakeProfit
+        # ) else False
+        #
+        # isExitShortTakeProfit = True if (
+        #     is_short
+        #     and self.shortTakeProfit > low
+        # ) else False
 
         # exits
         isExitLong = (
             isExitLongFastCrossover
-            or isExitLongFastMomentum
-            or isExitLongTakeProfit)
+            or isExitLongFastMomentum)
+            # or isExitLongTakeProfit)
         isExitShort = (
             isExitShortFastCrossover
-            or isExitShortFastMomentum
-            or isExitShortTakeProfit)
+            or isExitShortFastMomentum)
+            # or isExitShortTakeProfit)
 
         ################################################################################################################
 
-        if (isEntryLong):
+        if isEntryLong:
             self.buy()
-        elif (isEntryShort):
+        elif isEntryShort:
             self.sell()
-        elif (isExitLong):
+        elif isExitLong:
             self.position.close()
-        elif (isExitShort):
+        elif isExitShort:
             self.position.close()
