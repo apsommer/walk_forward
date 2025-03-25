@@ -93,11 +93,12 @@ class LiveStrategy(Strategy):
         # price crosses through fast average in favorable direction
         isFastCrossoverLong = (
                 fastSlope[-1] > fastAngle
-                and high[-1] > fast[-1] > low[-1])[-1]
+                and high[-1] > fast[-1] > low[-1])[-1] # index the indicator
         isFastCrossoverShort = (
                 -fastAngle > fastSlope[-1]
                 and high[-1] > fast[-1] > low[-1])[-1]
 
+        # placeholder
         isEntryDisabled = False
 
         # allow entry only during starting minutes of trend
@@ -116,7 +117,7 @@ class LiveStrategy(Strategy):
 
         # entries
         isEntryLong = (
-            not is_long and not is_short
+            position.size == 0
             and isFastCrossoverLong
             and not isEntryDisabled
             and not isEntryLongDisabled
@@ -124,7 +125,7 @@ class LiveStrategy(Strategy):
             and slowSlope[-1] > slowAngle
             and hasLongEntryDelayElapsed)
         isEntryShort = (
-            not is_long and not is_short
+            position.size == 0
             and isFastCrossoverShort
             and not isEntryDisabled
             and not isEntryShortDisabled
@@ -174,15 +175,13 @@ class LiveStrategy(Strategy):
 
         # exits
         isExitLong = (
-            is_long and (
-                isExitLongFastCrossover
-                or isExitLongFastMomentum
-                or isExitLongTakeProfit))
+            isExitLongFastCrossover
+            or isExitLongFastMomentum
+            or isExitLongTakeProfit)
         isExitShort = (
-            is_short and (
-                isExitShortFastCrossover
-                or isExitShortFastMomentum
-                or isExitShortTakeProfit))
+            isExitShortFastCrossover
+            or isExitShortFastMomentum
+            or isExitShortTakeProfit)
 
         # track exit
         self.longExitBarIndex = bar_index if isExitLong else self.longExitBarIndex
