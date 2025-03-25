@@ -4,8 +4,8 @@ from backtesting import Strategy
 
 def ema(prices, bars, smooth):
     raw = pd.DataFrame(prices).rolling(window=bars, win_type='exponential').mean()
-    smooth = raw.rolling(window=smooth, win_type='exponential').mean()
-    return np.array(smooth)
+    # smooth = raw.rolling(window=smooth, win_type='exponential').mean()
+    return np.array(raw)
 
 def initArray(prices):
     return np.array(prices)
@@ -21,13 +21,13 @@ class LiveStrategy(Strategy):
 
     # optimization params
     fastMinutes = 25
-    disableEntryMinutes = 180
+    disableEntryMinutes = 125
     fastMomentumMinutes = 110
     fastCrossoverPercent = 80
     takeProfitPercent = 0.5
-    fastAngleFactor = 20.0
+    fastAngle = 20.0
     slowMinutes = 1555
-    slowAngleFactor = 20.0
+    slowAngle = 20.0
     entryRestrictionMinutes = 0
     entryRestrictionPercent = 0.0
 
@@ -35,8 +35,6 @@ class LiveStrategy(Strategy):
     positionEntryMinutes = 1
 
     # convert
-    fastAngle = fastAngleFactor / 1000.0
-    slowAngle = slowAngleFactor / 1000.0
     takeProfit = takeProfitPercent / 100.0
     fastCrossover = fastCrossoverPercent / 100.0 if takeProfit == 0 else (fastCrossoverPercent / 100.0) * takeProfit
 
@@ -57,6 +55,8 @@ class LiveStrategy(Strategy):
 
         self.longFastCrossoverExit = None
         self.shortFastCrossoverExit = None
+        self.longEntryBarIndex = 0
+        self.shortEntryBarIndex = 0
         self.longExitBarIndex = 0
         self.shortExitBarIndex = 0
         self.isExitLongFastCrossoverEnabled = False
@@ -67,12 +67,15 @@ class LiveStrategy(Strategy):
     def next(self):
         super().next()
 
+        bar_index = len(self.data) - 1
+
         open = self.data.Open
         high = self.data.High
         low = self.data.Low
         close = self.data.Close
 
-        # disableEntryMinutes = self.disableEntryMinutes
+        disableEntryMinutes = self.disableEntryMinutes
+        positionEntryMinutes = self.positionEntryMinutes
         slowAngle = self.slowAngle
         position = self.position
         is_long = self.position.is_long
@@ -82,32 +85,30 @@ class LiveStrategy(Strategy):
         fastAngle = self.fastAngle
         takeProfit = self.takeProfit
         fast = self.fast
-        # slow = self.slow
         fastSlope = self.fastSlope
         slowSlope = self.slowSlope
+        longEntryBarIndex = self.longEntryBarIndex
+        shortEntryBarIndex = self.shortEntryBarIndex
 
         # price crosses through fast average in favorable direction
         isFastCrossoverLong = (
-            fastSlope[-1] > fastAngle
-            and (fast[-1] > open[-1] or fast[-1] > close[-1])
-            and high[-1] > fast[-1])
+                fastSlope[-1] > fastAngle
+                and high[-1] > fast[-1] > low[-1])[-1]
         isFastCrossoverShort = (
-            -fastAngle > fastSlope[-1]
-            and (open[-1] > fast[-1] or close[-1] > fast[-1])
-            and fast[-1] > low[-1])
+                -fastAngle > fastSlope[-1]
+                and high[-1] > fast[-1] > low[-1])[-1]
 
         isEntryDisabled = False
 
         # allow entry only during starting minutes of trend
-        isEntryLongDisabled = True if np.min(fastSlope[-self.disableEntryMinutes:]) > 0 else False
-        isEntryShortDisabled = True if 0 > np.max(fastSlope[-self.disableEntryMinutes:]) else False
+        isEntryLongDisabled = True if np.min(fastSlope[-disableEntryMinutes:]) > 0 else False
+        isEntryShortDisabled = True if 0 > np.max(fastSlope[-disableEntryMinutes:]) else False
 
         # handle small volatility: 1-5 bars
-        isEntryLongEnabled = True if fast[-1] > np.max(open[-self.positionEntryMinutes:]) else True if self.positionEntryMinutes == 0 else False
-        isEntryShortEnabled = True if np.min(open[-self.positionEntryMinutes:]) > fast[-1] else True if self.positionEntryMinutes == 0 else False
+        isEntryLongEnabled = False if positionEntryMinutes > bar_index - self.longEntryBarIndex else True
+        isEntryShortEnabled = False if positionEntryMinutes > bar_index - self.shortEntryBarIndex else True
 
         # cooloff time
-        bar_index = len(self.data) - 1
         hasLongEntryDelayElapsed = bar_index - self.longExitBarIndex > self.coolOffMinutes
         hasShortEntryDelayElapsed = bar_index - self.shortExitBarIndex > self.coolOffMinutes
 
@@ -115,19 +116,25 @@ class LiveStrategy(Strategy):
 
         # entries
         isEntryLong = (
-            position.size == 0
+            not is_long and not is_short
             and isFastCrossoverLong
+            and not isEntryDisabled
             and not isEntryLongDisabled
             and isEntryLongEnabled
             and slowSlope[-1] > slowAngle
             and hasLongEntryDelayElapsed)
         isEntryShort = (
-            position.size == 0
+            not is_long and not is_short
             and isFastCrossoverShort
+            and not isEntryDisabled
             and not isEntryShortDisabled
             and isEntryShortEnabled
             and -slowAngle > slowSlope[-1]
             and hasShortEntryDelayElapsed)
+
+        # track entry
+        self.longEntryBarIndex = bar_index if isEntryLong else self.longEntryBarIndex
+        self.shortEntryBarIndex = bar_index if isEntryShort else self.shortEntryBarIndex
 
         # exit crossing back into fast in unfavorable direction
         self.longFastCrossoverExit = self.longFastCrossoverExit if is_long else \
@@ -167,13 +174,15 @@ class LiveStrategy(Strategy):
 
         # exits
         isExitLong = (
-            isExitLongFastCrossover
-            or isExitLongFastMomentum
-            or isExitLongTakeProfit)
+            is_long and (
+                isExitLongFastCrossover
+                or isExitLongFastMomentum
+                or isExitLongTakeProfit))
         isExitShort = (
-            isExitShortFastCrossover
-            or isExitShortFastMomentum
-            or isExitShortTakeProfit)
+            is_short and (
+                isExitShortFastCrossover
+                or isExitShortFastMomentum
+                or isExitShortTakeProfit))
 
         # track exit
         self.longExitBarIndex = bar_index if isExitLong else self.longExitBarIndex
@@ -182,8 +191,9 @@ class LiveStrategy(Strategy):
         ################################################################################################################
 
         # execute orders on framework
-        self.buy() if isEntryLong else (
-            self.sell()) if isEntryShort else (
-            self.position.close()) if isExitLong else (
-            self.position.close()) if isExitShort else None
-
+        if isEntryLong:
+            self.buy()
+        if isEntryShort:
+            self.sell()
+        if isExitLong or isExitShort:
+            self.position.close()

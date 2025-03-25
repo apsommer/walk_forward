@@ -1,12 +1,10 @@
 from backtesting import Backtest
 import DataLayer as dl
-from ExampleStrategy import BuyLowSellHighStrategy
-import matplotlib.pyplot as plt
 
 from LiveStrategy import LiveStrategy
 
 # constants
-starting_date = "2024-10-01"
+starting_date = "2024-07-15"
 ending_date = "2025-01-01"
 schema = "ohlcv-1m"
 
