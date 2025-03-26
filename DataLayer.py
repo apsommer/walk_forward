@@ -14,9 +14,9 @@ def getPrices(
 
     # return cached data in csv format
     if csv_filename != None:
-        df_prices = pd.read_csv(csv_filename)
+        df_prices = pd.read_csv(csv_filename, index_col=0)
         df_prices.index = pd.to_datetime(df_prices.index)
-        return df_prices # todo clean up?
+        return df_prices
 
     else:
         df_prices = (client.timeseries.get_range(
