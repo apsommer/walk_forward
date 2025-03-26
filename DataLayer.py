@@ -7,18 +7,24 @@ import local.api_keys as keys
 client = db.Historical(keys.bento_api_key)
 
 def getPrices(
+    csv_filename = None,
+    symbol = "NQ.v.0",
+    schema = "ohlcv-1m",
     starting_date = "2024-10-01",
-    ending_date = "2025-01-01",
-    schema = "ohlcv-1m"):
+    ending_date = "2025-01-01"):
+
+    # return cached data in csv format
+    if csv_filename != None:
+        return pd.read_csv(csv_filename)
 
     df_prices = (client.timeseries.get_range(
         dataset="GLBX.MDP3",
-        symbols=["NQ.v.0"],
+        symbols=[symbol],
         stype_in="continuous",
         schema=schema,
         start=starting_date,
         end=ending_date)
-                 .to_df())
+            .to_df())
 
     # rename, drop
     df_prices.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"}, inplace=True)
