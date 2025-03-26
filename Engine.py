@@ -10,13 +10,13 @@ schema = "ohlcv-1m"
 starting_date = "2024-09-15"
 ending_date = "2025-03-15"
 
-# todo download prices costs $
-df_prices = data.getPrices(
-    csv_filename=csv_filename, # todo read from csv instead
-    symbol=symbol,
-    schema=schema,
-    starting_date=starting_date,
-    ending_date=ending_date)
+# todo download prices costs $ read from csv instead
+df_prices = data.getPrices(csv_filename=csv_filename)
+# df_prices = data.getPrices(
+#     symbol=symbol,
+#     schema=schema,
+#     starting_date=starting_date,
+#     ending_date=ending_date)
 # df_prices.to_excel(csv_filename.replace(".csv", ".xlsx"))
 # df_prices.to_csv(csv_filename)
 
@@ -32,4 +32,4 @@ stats = bt.run()
 # plt.plot(df_prices)
 # plt.show()
 print(stats)
-bt.plot()
+# bt.plot()
