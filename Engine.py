@@ -10,8 +10,7 @@ schema = "ohlcv-1m"
 starting_date = "2024-09-15"
 ending_date = "2025-03-15"
 
-# todo download prices costs $ read from csv instead
-df_prices = data.getPrices(csv_filename=csv_filename)
+# todo download prices costs $
 # df_prices = data.getPrices(
 #     symbol=symbol,
 #     schema=schema,
@@ -19,6 +18,9 @@ df_prices = data.getPrices(csv_filename=csv_filename)
 #     ending_date=ending_date)
 # df_prices.to_excel(csv_filename.replace(".csv", ".xlsx"))
 # df_prices.to_csv(csv_filename)
+
+# todo read from csv instead
+df_prices = data.getPrices(csv_filename=csv_filename)
 
 bt = Backtest(
     df_prices,

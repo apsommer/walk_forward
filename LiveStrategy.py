@@ -14,10 +14,9 @@ def initArray(prices):
     return np.array(prices)
 
 def getSlope(prices, bars):
-    res = ema(prices, bars)
-    diff = res - res[-1]
-    pdiff = (diff / res[-1]) * 100
-    slope = np.rad2deg(np.arctan(pdiff))
+    exp = ema(prices, bars)
+    normalized = ((exp - exp[-1]) / exp) * 100
+    slope = np.rad2deg(np.arctan(normalized))
     return slope
 
 class LiveStrategy(Strategy):
