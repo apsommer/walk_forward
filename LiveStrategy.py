@@ -185,12 +185,14 @@ class LiveStrategy(Strategy):
             None)
 
         self.isExitLongFastCrossoverEnabled = (
+            False if self.longFastCrossoverExit is None else
             False if self.isExitLong else
             True if isExitLongFastCrossoverEnabled else
             True if is_long and high[-1] > self.longFastCrossoverExit
             else False)
 
         self.isExitShortFastCrossoverEnabled = (
+            False if self.shortFastCrossoverExit is None else
             False if self.isExitShort else
             True if isExitShortFastCrossoverEnabled else
             True if is_short and self.shortFastCrossoverExit > low[-1] else False)
