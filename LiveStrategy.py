@@ -2,16 +2,19 @@ import numpy as np
 import pandas as pd
 from backtesting import Strategy
 
-def ema(prices, bars, smooth):
-    raw = pd.DataFrame(prices).rolling(window=bars, win_type='exponential').mean()
+def ema(prices, bars):
+    raw = (
+        pd.DataFrame(prices)
+           .rolling(window=bars, win_type='exponential')
+           .mean())
     # smooth = raw.rolling(window=smooth, win_type='exponential').mean()
-    return np.array(raw)
+    return np.array(raw, dtype='float64')
 
 def initArray(prices):
     return np.array(prices)
 
-def getSlope(prices, bars, smooth):
-    res = ema(prices, bars, smooth)
+def getSlope(prices, bars):
+    res = ema(prices, bars)
     diff = res - res[-1]
     pdiff = (diff / res[-1]) * 100
     slope = np.rad2deg(np.arctan(pdiff))
@@ -47,21 +50,21 @@ class LiveStrategy(Strategy):
 
         # fast and slow EMA
         ohlc4 = (open + high + low + close) / 4
-        self.fast = self.I(ema, ohlc4, self.fastMinutes, 5)
-        self.slow = self.I(ema, ohlc4, self.slowMinutes, 200)
-        self.fastSlope = self.I(getSlope, ohlc4, self.fastMinutes, 5)
-        self.slowSlope = self.I(getSlope, ohlc4, self.slowMinutes, 200)
+        self.fast = self.I(ema, ohlc4, self.fastMinutes)
+        self.slow = self.I(ema, ohlc4, self.slowMinutes)
+        self.fastSlope = self.I(getSlope, ohlc4, self.fastMinutes)
+        self.slowSlope = self.I(getSlope, ohlc4, self.slowMinutes)
 
-        self.longFastCrossoverExit = None
-        self.shortFastCrossoverExit = None
+        self.isExitLongFastCrossoverEnabled = False
+        self.isExitShortFastCrossoverEnabled = False
         self.longEntryBarIndex = 0
         self.shortEntryBarIndex = 0
         self.longExitBarIndex = 0
         self.shortExitBarIndex = 0
-        self.isExitLongFastCrossoverEnabled = False
-        self.isExitShortFastCrossoverEnabled = False
-        self.longTakeProfit = None
-        self.shortTakeProfit = None
+        self.longTakeProfit = 0.0
+        self.shortTakeProfit = 0.0
+        self.longFastCrossoverExit = 0.0
+        self.shortFastCrossoverExit = 0.0
         self.longFastCrossoverExit = 0.0
         self.shortFastCrossoverExit = 0.0
 
@@ -190,13 +193,11 @@ class LiveStrategy(Strategy):
         isExitLong = (
             isExitLongFastCrossover
             or isExitLongFastMomentum
-            or isExitLongTakeProfit
-        )
+            or isExitLongTakeProfit)
         isExitShort = (
             isExitShortFastCrossover
             or isExitShortFastMomentum
-            or isExitShortTakeProfit
-        )
+            or isExitShortTakeProfit)
 
         # track exit
         self.longExitBarIndex = bar_index if isExitLong else self.longExitBarIndex
