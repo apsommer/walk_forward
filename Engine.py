@@ -4,10 +4,10 @@ import DataLayer as data
 from LiveStrategy import LiveStrategy
 
 # constants
-csv_filename = "data/nq_last_6mon_2024-09-15_2025-03-15.csv"
+csv_filename = "data/nq_last_2years_2023-03-15_2025-03-15.csv"
 symbol = "NQ.v.0"
 schema = "ohlcv-1m"
-starting_date = "2024-09-15"
+starting_date = "2023-03-15"
 ending_date = "2025-03-15"
 
 # todo download prices costs $

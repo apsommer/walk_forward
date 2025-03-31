@@ -68,7 +68,7 @@ class LiveStrategy(Strategy):
         self.shortEntryBarIndex = 0
         self.longExitBarIndex = 0
         self.shortExitBarIndex = 0
-        
+
         self.longTakeProfit = 0.0
         self.shortTakeProfit = 0.0
         self.longFastCrossoverExit = 0.0
