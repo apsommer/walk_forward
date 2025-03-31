@@ -63,10 +63,12 @@ class LiveStrategy(Strategy):
         self.isExitShortFastCrossoverEnabled = False
         self.isExitLong = False
         self.isExitShort = False
+
         self.longEntryBarIndex = 0
         self.shortEntryBarIndex = 0
         self.longExitBarIndex = 0
         self.shortExitBarIndex = 0
+        
         self.longTakeProfit = 0.0
         self.shortTakeProfit = 0.0
         self.longFastCrossoverExit = 0.0
@@ -83,21 +85,23 @@ class LiveStrategy(Strategy):
         high = self.data.High
         low = self.data.Low
         close = self.data.Close
+        position = self.position
+        is_long = self.position.is_long
+        is_short = self.position.is_short
 
         disableEntryMinutes = self.disableEntryMinutes
         positionEntryMinutes = self.positionEntryMinutes
         coolOffMinutes = self.coolOffMinutes
         slowAngle = self.slowAngle
-        position = self.position
-        is_long = self.position.is_long
-        is_short = self.position.is_short
         fastCrossover = self.fastCrossover
         fastMomentumMinutes = self.fastMomentumMinutes
         fastAngle = self.fastAngle
         takeProfit = self.takeProfit
+
         fast = self.fast
         fastSlope = self.fastSlope
         slowSlope = self.slowSlope
+
         longEntryBarIndex = self.longEntryBarIndex
         shortEntryBarIndex = self.shortEntryBarIndex
         longFastCrossoverExit = self.longFastCrossoverExit
