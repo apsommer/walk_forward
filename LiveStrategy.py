@@ -28,17 +28,16 @@ class LiveStrategy(Strategy):
 
     # optimization params
     fastMinutes = 25
-    disableEntryMinutes = 155
+    disableEntryMinutes = 0
     fastMomentumMinutes = 90
-    slowMinutes = 1955
-    entryRestrictionMinutes = 0
+    fastCrossoverPercent = float(0)
+    takeProfitPercent = float(0.32)
+    fastAngle = float(40) # todo factor ...
+    slowMinutes = 1555
+    slowAngle = float(10)
+
     coolOffMinutes = 5
     positionEntryMinutes = 1
-    fastAngle = 75.1
-    slowAngle = 20.5
-    fastCrossoverPercent = 80
-    takeProfitPercent = 0.5
-    entryRestrictionPercent = 0
 
     # convert
     takeProfit = takeProfitPercent / 100.0
@@ -149,8 +148,6 @@ class LiveStrategy(Strategy):
         # cooloff time
         hasLongEntryDelayElapsed = bar_index - self.longExitBarIndex > coolOffMinutes
         hasShortEntryDelayElapsed = bar_index - self.shortExitBarIndex > coolOffMinutes
-
-        # todo entry restriction idea
 
         # entries
         isEntryLong = (

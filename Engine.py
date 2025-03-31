@@ -1,4 +1,3 @@
-import pandas as pd
 from backtesting import Backtest
 import DataLayer as data
 from LiveStrategy import LiveStrategy
@@ -21,7 +20,6 @@ ending_date = "2025-03-15"
 
 # todo read from csv instead
 df_prices = data.getPrices(csv_filename=csv_filename)
-
 bt = Backtest(
     df_prices,
     LiveStrategy,
