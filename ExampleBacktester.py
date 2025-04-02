@@ -8,7 +8,7 @@ starting_date = "2024-10-15"
 ending_date = "2025-01-01"
 schema = "ohlcv-1m"
 
-df_prices = dl.getPrices(
+df_prices = dl.getOhlc(
     starting_date,
     ending_date,
     schema)

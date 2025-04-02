@@ -1,11 +1,16 @@
+import logging
+import sys
 import databento as db
 import pandas as pd
 import local.api_keys as keys
 
-# request network data synchronous!
-client = db.Historical(keys.bento_api_key)
+log_format = "%(message)s"
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG, format=log_format)
 
-def getPrices(
+def logm(message):
+        logging.info(message)
+
+def getOhlc(
     csv_filename = None,
     symbol = "NQ.v.0",
     schema = "ohlcv-1m",
@@ -13,28 +18,33 @@ def getPrices(
     ending_date = "2025-01-01"):
 
     # return cached data in csv format
-    if csv_filename != None:
-        df_prices = pd.read_csv(csv_filename, index_col=0)
-        df_prices.index = pd.to_datetime(df_prices.index)
-        return df_prices
+    if csv_filename is not None:
 
-    else:
-        df_prices = (client.timeseries.get_range(
-            dataset="GLBX.MDP3",
-            symbols=[symbol],
-            stype_in="continuous",
-            schema=schema,
-            start=starting_date,
-            end=ending_date)
-                .to_df())
+        logm("Upload ohlc from " + csv_filename)
 
-        # rename, drop
-        df_prices.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"}, inplace=True)
-        df_prices.index.rename("timestamp", inplace=True)
-        df_prices = df_prices[df_prices.columns.drop(['symbol', 'rtype', 'instrument_id', 'publisher_id', 'volume'])]
+        ohlc = pd.read_csv(csv_filename, index_col=0)
+        ohlc.index = pd.to_datetime(ohlc.index)
+        return ohlc
 
-        # normalize timestamps
-        df_prices.index = df_prices.index.tz_localize(None)
-        df_prices.index = pd.to_datetime(df_prices.index)
+    logm("Download ohlc from databento ...")
 
-        return df_prices
+    # request network data synchronous!
+    client = db.Historical(keys.bento_api_key)
+    ohlc = (client.timeseries.get_range(
+        dataset="GLBX.MDP3",
+        symbols=[symbol],
+        stype_in="continuous",
+        schema=schema,
+        start=starting_date,
+        end=ending_date).to_df())
+
+    # rename, drop
+    ohlc.rename(columns={"open": "Open", "high": "High", "low": "Low", "close": "Close"}, inplace=True)
+    ohlc.index.rename("timestamp", inplace=True)
+    ohlc = ohlc[ohlc.columns.drop(['symbol', 'rtype', 'instrument_id', 'publisher_id', 'volume'])]
+
+    # normalize timestamps
+    ohlc.index = ohlc.index.tz_localize(None)
+    ohlc.index = pd.to_datetime(ohlc.index)
+
+    return ohlc

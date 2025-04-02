@@ -4,14 +4,14 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from datetime import datetime
 import math
-from DataLayer import getPrices
+from DataLayer import getOhlc
 from ExampleStrategy import BuyLowSellHighStrategy
 
 # constants
 starting_date = "2023-12-15"
 ending_date = "2025-01-01"
 
-df_prices = getPrices(starting_date, ending_date)
+df_prices = getOhlc(starting_date, ending_date)
 
 iterations = [
     {
