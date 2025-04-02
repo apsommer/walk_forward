@@ -9,10 +9,8 @@ def ema(prices, bars, smoothing):
     ema = np.array(smooth, dtype='float64')
     return ema
 
-def initArray(prices):
-    return np.array(prices)
+def slope(prices, bars, smoothing):
 
-def getSlope(prices, bars, smoothing):
     exp = ema(prices, bars, smoothing)
     normalized = ((exp - exp[-1]) / exp) * 100
     slope = np.rad2deg(np.arctan(normalized))
@@ -53,8 +51,8 @@ class LiveStrategy(Strategy):
         ohlc4 = (open + high + low + close) / 4
         self.fast = self.I(ema, ohlc4, self.fastMinutes, 5)
         self.slow = self.I(ema, ohlc4, self.slowMinutes, 200)
-        self.fastSlope = self.I(getSlope, ohlc4, self.fastMinutes, 5)
-        self.slowSlope = self.I(getSlope, ohlc4, self.slowMinutes, 200)
+        self.fastSlope = self.I(slope, ohlc4, self.fastMinutes, 5)
+        self.slowSlope = self.I(slope, ohlc4, self.slowMinutes, 200)
 
         self.isExitLongFastCrossoverEnabled = False
         self.isExitShortFastCrossoverEnabled = False
