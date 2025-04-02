@@ -3,17 +3,11 @@ import pandas as pd
 from backtesting import Strategy
 
 def ema(prices, bars, smoothing):
-    raw = (pd.DataFrame(prices)
-        .rolling(
-            window=bars,
-            win_type='exponential')
-        .mean())
-    smooth = (raw
-        .rolling(
-            window=smoothing,
-            win_type='exponential')
-        .mean())
-    return np.array(smooth, dtype='float64')
+
+    raw = (pd.DataFrame(prices).rolling(window=bars, win_type='exponential').mean())
+    smooth = (raw.rolling(window=smoothing, win_type='exponential').mean())
+    ema = np.array(smooth, dtype='float64')
+    return ema
 
 def initArray(prices):
     return np.array(prices)
@@ -32,16 +26,20 @@ class LiveStrategy(Strategy):
     fastMomentumMinutes = 90
     fastCrossoverPercent = float(0)
     takeProfitPercent = float(0.32)
-    fastAngle = float(40) # todo factor ...
+    fastAngleFactor = float(40)
     slowMinutes = 1555
-    slowAngle = float(10)
+    slowAngleFactor = float(10)
 
     coolOffMinutes = 5
     positionEntryMinutes = 1
 
     # convert
     takeProfit = takeProfitPercent / 100.0
-    fastCrossover = fastCrossoverPercent / 100.0 if takeProfit == 0 else (fastCrossoverPercent / 100.0) * takeProfit
+    fastCrossover = (
+        fastCrossoverPercent / 100.0 if takeProfit == 0 else
+        (fastCrossoverPercent / 100.0) * takeProfit)
+    fastAngle = fastAngleFactor / 1000.0
+    slowAngle = slowAngleFactor / 1000.0
 
     def init(self):
         super().init()
@@ -75,7 +73,6 @@ class LiveStrategy(Strategy):
         self.longFastCrossoverExit = 0.0
         self.shortFastCrossoverExit = 0.0
 
-
     def next(self):
         super().next()
 
@@ -84,6 +81,7 @@ class LiveStrategy(Strategy):
         high = self.data.High
         low = self.data.Low
         close = self.data.Close
+
         position = self.position
         is_long = self.position.is_long
         is_short = self.position.is_short
@@ -91,10 +89,10 @@ class LiveStrategy(Strategy):
         disableEntryMinutes = self.disableEntryMinutes
         positionEntryMinutes = self.positionEntryMinutes
         coolOffMinutes = self.coolOffMinutes
+        fastAngle = self.fastAngle
         slowAngle = self.slowAngle
         fastCrossover = self.fastCrossover
         fastMomentumMinutes = self.fastMomentumMinutes
-        fastAngle = self.fastAngle
         takeProfit = self.takeProfit
 
         fast = self.fast
