@@ -17,8 +17,8 @@ schema = "ohlcv-1m"
 #     schema=schema,
 #     starting_date=starting_date,
 #     ending_date=ending_date)
-# df_prices.to_excel(csv_filename.replace(".csv", ".xlsx"))
 # df_prices.to_csv(csv_filename)
+# df_prices.to_excel(csv_filename.replace(".csv", ".xlsx"))
 
 # todo read from csv instead
 ohlc = data.getOhlc(csv_filename=csv_filename)
