@@ -1,5 +1,5 @@
 from backtesting import Backtest
-import DataLayer as data
+import Repository as data
 from LiveStrategy import LiveStrategy
 
 # constants
@@ -21,9 +21,9 @@ schema = "ohlcv-1m"
 # df_prices.to_csv(csv_filename)
 
 # todo read from csv instead
-df_prices = data.getOhlc(csv_filename=csv_filename)
+ohlc = data.getOhlc(csv_filename=csv_filename)
 bt = Backtest(
-    df_prices,
+    ohlc,
     LiveStrategy,
     cash=10_000_000,
     commission=0,
