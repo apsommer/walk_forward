@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from backtesting import Strategy
+import Repository as repo
 
 def ema(prices, bars, smoothing):
 
@@ -75,6 +76,10 @@ class LiveStrategy(Strategy):
         super().next()
 
         bar_index = len(self.data) - 1
+
+        if bar_index == 100:
+            repo.logm(str(self))
+
         open = self.data.Open
         high = self.data.High
         low = self.data.Low
