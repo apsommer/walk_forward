@@ -60,10 +60,11 @@ class LiveStrategy(Strategy):
         self.isExitLong = False
         self.isExitShort = False
 
-        self.longEntryBarIndex = 0
-        self.shortEntryBarIndex = 0
-        self.longExitBarIndex = 0
-        self.shortExitBarIndex = 0
+        self.barIndex = -1
+        self.longEntryBarIndex = -1
+        self.shortEntryBarIndex = -1
+        self.longExitBarIndex = -1
+        self.shortExitBarIndex = -1
 
         self.longTakeProfit = 0.0
         self.shortTakeProfit = 0.0
@@ -75,10 +76,8 @@ class LiveStrategy(Strategy):
     def next(self):
         super().next()
 
-        bar_index = len(self.data) - 1
-
-        if bar_index == 100:
-            repo.logm(str(self))
+        self.barIndex += 1
+        barIndex = self.barIndex
 
         open = self.data.Open
         high = self.data.High
@@ -104,12 +103,13 @@ class LiveStrategy(Strategy):
 
         longEntryBarIndex = self.longEntryBarIndex
         shortEntryBarIndex = self.shortEntryBarIndex
+        longExitBarIndex = self.longExitBarIndex
+        shortExitBarIndex = self.shortExitBarIndex
+
         longFastCrossoverExit = self.longFastCrossoverExit
         shortFastCrossoverExit = self.shortFastCrossoverExit
         isExitLongFastCrossoverEnabled = self.isExitLongFastCrossoverEnabled
         isExitShortFastCrossoverEnabled = self.isExitShortFastCrossoverEnabled
-        isExitLong = self.isExitLong
-        isExitShort = self.isExitShort
         longTakeProfit = self.longTakeProfit
         shortTakeProfit = self.shortTakeProfit
 
@@ -147,8 +147,8 @@ class LiveStrategy(Strategy):
             False)
 
         # cooloff time
-        hasLongEntryDelayElapsed = bar_index - self.longExitBarIndex > coolOffMinutes
-        hasShortEntryDelayElapsed = bar_index - self.shortExitBarIndex > coolOffMinutes
+        hasLongEntryDelayElapsed = barIndex - longExitBarIndex > coolOffMinutes
+        hasShortEntryDelayElapsed = barIndex - shortExitBarIndex > coolOffMinutes
 
         # entries
         isEntryLong = (
@@ -169,8 +169,8 @@ class LiveStrategy(Strategy):
             and hasShortEntryDelayElapsed)
 
         # track entry
-        self.longEntryBarIndex = bar_index if isEntryLong else longEntryBarIndex
-        self.shortEntryBarIndex = bar_index if isEntryShort else shortEntryBarIndex
+        self.longEntryBarIndex = barIndex if isEntryLong else longEntryBarIndex
+        self.shortEntryBarIndex = barIndex if isEntryShort else shortEntryBarIndex
 
         # exit crossing back into fast in unfavorable direction
         self.longFastCrossoverExit = (
@@ -241,8 +241,8 @@ class LiveStrategy(Strategy):
             or isExitShortTakeProfit)
 
         # track exit
-        self.longExitBarIndex = bar_index if self.isExitLong else self.longExitBarIndex
-        self.shortExitBarIndex = bar_index if self.isExitShort else self.shortExitBarIndex
+        self.longExitBarIndex = barIndex if self.isExitLong else longExitBarIndex
+        self.shortExitBarIndex = barIndex if self.isExitShort else shortExitBarIndex
 
         ################################################################################################################
 
@@ -251,5 +251,17 @@ class LiveStrategy(Strategy):
             self.buy()
         if isEntryShort:
             self.sell()
-        if isExitLong or isExitShort:
+        if self.isExitLong or self.isExitShort:
             self.position.close()
+            repo.logm(self)
+
+    def __str__(self):
+        return (
+            "\n\n" + "fastAngle: " + str(self.fastAngle) + "\n"
+            "barIndex: " + str(self.barIndex) + "\n" +
+            "longEntryBarIndex: " + str(self.longEntryBarIndex) + "\n" +
+            "\n" +
+            "fast: " + str(self.fast[-1]) + "\n" +
+            "slow: " + str(self.slow[-1]) + "\n" +
+            "longTakeProfit: " + str(self.longTakeProfit) + "\n"
+        )
