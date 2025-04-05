@@ -23,8 +23,8 @@ class LiveStrategy(Strategy):
     fastMinutes = 25
     disableEntryMinutes = 0
     fastMomentumMinutes = 90
-    fastCrossoverPercent = float(0)
-    takeProfitPercent = float(0.32)
+    fastCrossoverPercent = float(80)
+    takeProfitPercent = float(0.5)
     fastAngleFactor = float(40)
     slowMinutes = 1555
     slowAngleFactor = float(10)
@@ -253,6 +253,8 @@ class LiveStrategy(Strategy):
             self.sell()
         if self.isExitLong or self.isExitShort:
             self.position.close()
+
+        if barIndex == 1129:
             repo.logm(self)
 
     def __str__(self):
@@ -260,8 +262,10 @@ class LiveStrategy(Strategy):
             "\n\n" + "fastAngle: " + str(self.fastAngle) + "\n"
             "barIndex: " + str(self.barIndex) + "\n" +
             "longEntryBarIndex: " + str(self.longEntryBarIndex) + "\n" +
+            "shortEntryBarIndex: " + str(self.shortEntryBarIndex) + "\n" +
             "\n" +
             "fast: " + str(self.fast[-1]) + "\n" +
             "slow: " + str(self.slow[-1]) + "\n" +
+            "longFastCrossoverExit: " + str(self.longFastCrossoverExit) + "\n"
             "longTakeProfit: " + str(self.longTakeProfit) + "\n"
         )

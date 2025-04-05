@@ -1,6 +1,7 @@
 from backtesting import Backtest
 import Repository as data
 from LiveStrategy import LiveStrategy
+from tabulate import tabulate
 
 # constants
 csv_filename = "data/nq_6months_2024-09-15_2025-03-15.csv"
@@ -30,8 +31,15 @@ bt = Backtest(
     exclusive_orders=True)
 stats = bt.run()
 
-# stats.to_csv("stats.csv")
 # plt.plot(df_prices)
 # plt.show()
-print(stats)
 # bt.plot()
+
+print(stats)
+print(str(stats['_trades']))
+print(
+    tabulate(
+        stats,
+        headers='keys',
+        tablefmt='psql'))
+

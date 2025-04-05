@@ -20,13 +20,13 @@ def getOhlc(
     # return cached data in csv format
     if csv_filename is not None:
 
-        logm("Upload ohlc from " + csv_filename)
+        logm("Upload OHLC from " + csv_filename)
 
         ohlc = pd.read_csv(csv_filename, index_col=0)
         ohlc.index = pd.to_datetime(ohlc.index)
         return ohlc
 
-    logm("Download ohlc from databento ...")
+    logm("Download OHLC from databento costs $$$ ...")
 
     # request network data synchronous!
     client = db.Historical(keys.bento_api_key)
