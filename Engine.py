@@ -36,10 +36,11 @@ stats = bt.run()
 # bt.plot()
 
 print(stats)
+print('\n')
 print(str(stats['_trades']))
-print(
-    tabulate(
-        stats,
-        headers='keys',
-        tablefmt='psql'))
-
+print('\n')
+print(tabulate(
+    [stats],
+    headers='keys',
+    tablefmt='simple'
+))

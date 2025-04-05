@@ -275,7 +275,7 @@ class LiveStrategy(Strategy):
         if self.isExitLong or self.isExitShort:
             self.position.close()
 
-        if barIndex == 1129:
+        if barIndex == 10221:
             repo.logm(self)
 
     def __str__(self):
