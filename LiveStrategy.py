@@ -40,6 +40,27 @@ class LiveStrategy(Strategy):
     fastAngle = fastAngleFactor / 1000.0
     slowAngle = slowAngleFactor / 1000.0
 
+    def __init__(self, broker, data, params):
+        super().__init__(broker, data, params)
+
+        self.shortFastCrossoverExit = None
+        self.longFastCrossoverExit = None
+        self.shortTakeProfit = None
+        self.longTakeProfit = None
+        self.shortExitBarIndex = None
+        self.longExitBarIndex = None
+        self.shortEntryBarIndex = None
+        self.longEntryBarIndex = None
+        self.isExitShort = None
+        self.barIndex = None
+        self.isExitLong = None
+        self.isExitShortFastCrossoverEnabled = None
+        self.isExitLongFastCrossoverEnabled = None
+        self.slowSlope = None
+        self.fastSlope = None
+        self.slow = None
+        self.fast = None
+
     def init(self):
         super().init()
 
