@@ -23,16 +23,18 @@ schema = "ohlcv-1m"
 
 # todo read from csv instead
 ohlc = data.getOhlc(csv_filename=csv_filename)
-bt = Backtest(
-    ohlc,
-    LiveStrategy,
-    cash=10_000_000,
-    commission=0,
-    exclusive_orders=True)
-stats = bt.run()
 
-# plt.plot(df_prices)
-# plt.show()
-# bt.plot()
+def run():
 
-print(stats)
+    bt = Backtest(
+        ohlc,
+        LiveStrategy,
+        cash=10_000_000,
+        commission=0,
+        exclusive_orders=True)
+
+    stats = bt.run()
+    print(stats)
+    # plt.plot(df_prices)
+    # plt.show()
+    # bt.plot()
