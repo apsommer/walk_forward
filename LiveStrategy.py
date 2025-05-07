@@ -71,6 +71,8 @@ class LiveStrategy(Strategy):
 
         # fast and slow EMA
         ohlc4 = (open + high + low + close) / 4
+
+        # todo perf fix this is creating ema x2, only need x1
         self.fast = self.I(ema, ohlc4, self.fastMinutes, 5)
         self.slow = self.I(ema, ohlc4, self.slowMinutes, 200)
         self.fastSlope = self.I(slope, ohlc4, self.fastMinutes, 5)
@@ -193,7 +195,7 @@ class LiveStrategy(Strategy):
         self.longEntryBarIndex = barIndex if isEntryLong else longEntryBarIndex
         self.shortEntryBarIndex = barIndex if isEntryShort else shortEntryBarIndex
 
-        # exit crossing back into fast in unfavorable direction
+        # exit crossing fast in unfavorable direction
         self.longFastCrossoverExit = (
             None if fastCrossover == 0 else
             (1 + fastCrossover) * fast[-1] if isEntryLong else
@@ -230,7 +232,7 @@ class LiveStrategy(Strategy):
                 and high[-1] > fast[-1] else
             False)
 
-        # exit due to excessive momentum in unfavorable direction
+        # exit for excessive momentum in unfavorable direction
         isExitLongFastMomentum = True if (
             fastMomentumMinutes != 0
             and is_long
