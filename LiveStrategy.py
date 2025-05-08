@@ -72,7 +72,7 @@ class LiveStrategy(Strategy):
         # fast and slow EMA
         ohlc4 = (open + high + low + close) / 4
 
-        # todo perf fix this is creating ema x2, only need x1
+        # todo perf fix this is creating full ema arrays twice, only need x1
         self.fast = self.I(ema, ohlc4, self.fastMinutes, 5)
         self.slow = self.I(ema, ohlc4, self.slowMinutes, 200)
         self.fastSlope = self.I(slope, ohlc4, self.fastMinutes, 5)
@@ -279,6 +279,8 @@ class LiveStrategy(Strategy):
 
         if barIndex == 10221:
             repo.logm(self)
+
+    ####################################################################################################################
 
     def __str__(self):
         return (
